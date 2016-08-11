@@ -23,9 +23,10 @@ import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancela
 import monix.execution.rstreams.Subscription
 import monix.execution.schedulers.ExecutionModel
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
-import monix.types.Evaluable
 import org.reactivestreams.Subscriber
 import monix.execution.atomic.{Atomic, AtomicAny, PaddingStrategy}
+import monix.types.Evaluable
+
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.generic.CanBuildFrom
@@ -1695,7 +1696,7 @@ object Task extends TaskInstances {
 
 private[eval] trait TaskInstances {
   /** Type-class instances for [[Task]] that have
-    * nondeterministic effects for [[monix.types.Applicative Applicative]].
+    * nondeterministic effects for [[monix.types.shims.Applicative Applicative]].
     *
     * It can be optionally imported in scope to make `map2` and `ap` to
     * potentially run tasks in parallel.
@@ -1710,16 +1711,19 @@ private[eval] trait TaskInstances {
 
   /** Groups the implementation for the type-classes defined in [[monix.types]]. */
   class TypeClassInstances extends Evaluable[Task] {
+    override def now[A](a: A): Task[A] = Task.now(a)
+    override def evalAlways[A](f: =>A): Task[A] = Task.evalAlways(f)
+    override def defer[A](fa: =>Task[A]): Task[A] = Task.defer(fa)
+    override def memoize[A](fa: Task[A]): Task[A] = fa.memoize
+    override def evalOnce[A](f: =>A): Task[A] = Task.evalOnce(f)
+    override def unit: Task[Unit] = Task.unit
+
     override def flatMap[A, B](fa: Task[A])(f: (A) => Task[B]): Task[B] =
       fa.flatMap(f)
     override def flatten[A](ffa: Task[Task[A]]): Task[A] =
       ffa.flatten
     override def coflatMap[A, B](fa: Task[A])(f: (Task[A]) => B): Task[B] =
       Task.evalAlways(f(fa))
-    override def pure[A](a: A): Task[A] =
-      Task.now(a)
-    override def pureEval[A](a: => A): Task[A] =
-      Task.evalAlways(a)
     override def ap[A, B](fa: Task[A])(ff: Task[(A) => B]): Task[B] =
       for (f <- ff; a <- fa) yield f(a)
     override def map2[A, B, Z](fa: Task[A], fb: Task[B])(f: (A, B) => Z): Task[Z] =

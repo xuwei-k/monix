@@ -18,6 +18,7 @@
 package monix.reactive
 
 import java.io.{BufferedReader, InputStream, Reader}
+
 import monix.eval.{Coeval, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
@@ -29,6 +30,7 @@ import monix.reactive.observers._
 import monix.reactive.subjects._
 import monix.types.Streamable
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
+
 import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
