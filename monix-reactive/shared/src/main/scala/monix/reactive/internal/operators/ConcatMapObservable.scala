@@ -85,7 +85,6 @@ class ConcatMapObservable[A, B]
             }
 
             def onComplete(): Unit = {
-              println("On Complete Child")
               // NOTE: we aren't sending this onComplete signal downstream
               // instead we are just instructing upstream to send the next observable.
               // We also need to apply back-pressure on the last ack,

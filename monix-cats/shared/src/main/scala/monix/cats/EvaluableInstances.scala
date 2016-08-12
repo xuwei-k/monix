@@ -20,7 +20,7 @@ package monix.cats
 import cats.{CoflatMap, Group, MonadError, Monoid, Semigroup}
 import monix.types.Evaluable
 
-/** Converts Monix's [[Evaluable Evaluable]]
+/** Converts Monix's [[monix.types.Evaluable Evaluable]]
   * instances into Cats type-classes.
   */
 trait EvaluableInstances extends EvaluableInstances2 {

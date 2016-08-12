@@ -72,8 +72,9 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
       // Running once to trigger effects
       t1.runAsync(s)
       t2.runAsync(s)
+      s.tick()
 
-      t1 =!= t1
+      t1 =!= t2
     }
   }
 

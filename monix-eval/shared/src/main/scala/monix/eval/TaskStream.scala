@@ -20,16 +20,40 @@ package monix.eval
 import monix.execution.{CancelableFuture, Scheduler}
 import scala.util.control.NonFatal
 
-/** An `TaskStream` represents a [[Task]]-based asynchronous stream.
+/** A `TaskStream` represents a [[Task]]-based stream, that
+  * has potentially lazy behavior in the tail and that
+  * support asynchronous behavior.
   *
-  * The implementation is practically wrapping
-  * an [[Enumerator]] of [[Task]], provided for convenience.
+  * A `TaskStream` has the following characteristics:
+  *
+  *  1. it can be infinite
+  *  2. it can be lazy
+  *  3. it can be asynchronous
+  *
+  * It's very similar to other lazy types in Scala's standard
+  * library, like `Iterator`, however the execution model is more
+  * flexible, as it is controlled by [[Task]]. This means that:
+  *
+  *  1. you can have the equivalent of an `Iterable` if the
+  *     `Task` tails are built with [[Task.evalAlways]]
+  *  2. you can have the equivalent of a Scala `Stream`, caching
+  *     elements as the stream is getting traversed, if the
+  *     `Task` tails are built with [[Task.evalOnce]]
+  *  3. it can be completely strict and thus equivalent with
+  *     `List`, if the tails are built with [[Task.now]]
+  *  4. it supports asynchronous behavior and can also replace
+  *     `Observable` for simple use-cases - for example the
+  *     elements produced can be the result of asynchronous
+  *     HTTP requests
+  *
+  * The implementation is practically wrapping the generic
+  * [[Enumerator]], initialized with the [[Task]] type.
   */
-final case class TaskStream[+A](source: Enumerator[Task,A])
+final case class TaskStream[+A](enumerator: Enumerator[Task,A])
   extends StreamLike[A,Task,TaskStream]()(Task.typeClassInstances) {
 
   protected def transform[B](f: (Enumerator[Task,A]) => Enumerator[Task,B]): TaskStream[B] = {
-    val next = try f(source) catch { case NonFatal(ex) => Enumerator.Error[Task](ex) }
+    val next = try f(enumerator) catch { case NonFatal(ex) => Enumerator.raiseError[Task,B](ex) }
     TaskStream(next)
   }
 
