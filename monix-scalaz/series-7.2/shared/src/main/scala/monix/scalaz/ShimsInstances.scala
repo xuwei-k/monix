@@ -17,14 +17,13 @@
 
 package monix.scalaz
 
-import monix.types.{shims, _}
 import monix.types.shims._
 
 /** Groups all shim type-class conversions together. */
 trait ShimsInstances extends ShimsLevel8
 
 private[scalaz] trait ShimsLevel8 extends ShimsLevel7 {
-  /** Converts Monix's [[shims.MonadPlus MonadPlus]]
+  /** Converts Monix's [[monix.types.shims.MonadPlus MonadPlus]]
     * instances into the Scalaz `MonadPlus`.
     */
   implicit def monixMonadPlusInstancesToScalaz[F[_]]
@@ -42,7 +41,7 @@ private[scalaz] trait ShimsLevel8 extends ShimsLevel7 {
 }
 
 private[scalaz] trait ShimsLevel7 extends ShimsLevel6 {
-  /** Converts Monix's [[shims.MonoidK MonoidK]]
+  /** Converts Monix's [[monix.types.shims.MonoidK MonoidK]]
     * instances into the Scalaz `PlusEmpty`.
     */
   implicit def monixMonoidKInstancesToScalaz[F[_]]
@@ -58,7 +57,7 @@ private[scalaz] trait ShimsLevel7 extends ShimsLevel6 {
 }
 
 private[scalaz] trait ShimsLevel6 extends ShimsLevel5 {
-  /** Converts Monix's [[shims.SemigroupK SemigroupK]]
+  /** Converts Monix's [[monix.types.shims.SemigroupK SemigroupK]]
     * instances into the Scalaz `Plus`.
     */
   implicit def monixSemigroupKInstancesToScalaz[F[_]]
@@ -76,7 +75,7 @@ private[scalaz] trait ShimsLevel6 extends ShimsLevel5 {
 }
 
 private[scalaz] trait ShimsLevel5 extends ShimsLevel4 {
-  /** Converts Monix's [[Comonad Comonad]]
+  /** Converts Monix's [[monix.types.shims.Comonad Comonad]]
     * instances into the Scalaz `Comonad`.
     */
   implicit def monixComonadInstancesToScalaz[F[_]]
@@ -92,7 +91,7 @@ private[scalaz] trait ShimsLevel5 extends ShimsLevel4 {
 }
 
 private[scalaz] trait ShimsLevel4 extends ShimsLevel3 {
-  /** Converts Monix's [[CoflatMap CoflatMap]]
+  /** Converts Monix's [[monix.types.shims.CoflatMap CoflatMap]]
     * instances into the Scalaz `Cobind`.
     */
   implicit def monixCoflatMapInstancesToScalaz[F[_]]
@@ -108,7 +107,7 @@ private[scalaz] trait ShimsLevel4 extends ShimsLevel3 {
 }
 
 private[scalaz] trait ShimsLevel3 extends ShimsLevel2  {
-  /** Converts Monix's [[shims.MonadError MonadError]]
+  /** Converts Monix's [[monix.types.shims.MonadError MonadError]]
     * instances into the Scalaz `MonadError`.
     */
   implicit def monixMonadErrorInstancesToScalaz[F[_],E]
@@ -127,7 +126,7 @@ private[scalaz] trait ShimsLevel3 extends ShimsLevel2  {
 }
 
 private[scalaz] trait ShimsLevel2 extends ShimsLevel1 {
-  /** Converts Monix's [[Monad Monad]]
+  /** Converts Monix's [[monix.types.shims.Monad Monad]]
     * instances into the Scalaz `Monad`.
     */
   implicit def monixMonadInstancesToScalaz[F[_]](implicit ev: Monad[F]): _root_.scalaz.Monad[F] =
@@ -142,7 +141,7 @@ private[scalaz] trait ShimsLevel2 extends ShimsLevel1 {
 }
 
 private[scalaz] trait ShimsLevel1 extends ShimsLevel0 {
-  /** Converts Monix's [[Applicative Applicative]]
+  /** Converts Monix's [[monix.types.shims.Applicative Applicative]]
     * instances into the Scalaz `Applicative`.
     */
   implicit def monixApplicativeInstancesToScalaz[F[_]]
@@ -161,7 +160,7 @@ private[scalaz] trait ShimsLevel1 extends ShimsLevel0 {
 }
 
 private[scalaz] trait ShimsLevel0 {
-  /** Converts Monix's [[Functor Functor]]
+  /** Converts Monix's [[monix.types.shims.Functor Functor]]
     * instances into the Scalaz `Functor`.
     */
   implicit def monixFunctorInstancesToScalaz[F[_]]

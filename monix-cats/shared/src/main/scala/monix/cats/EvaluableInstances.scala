@@ -18,7 +18,7 @@
 package monix.cats
 
 import cats.{CoflatMap, Group, MonadError, Monoid, Semigroup}
-import monix.types.{Evaluable, shims}
+import monix.types.Evaluable
 
 /** Converts Monix's [[Evaluable Evaluable]]
   * instances into Cats type-classes.

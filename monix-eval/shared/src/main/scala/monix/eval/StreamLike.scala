@@ -27,8 +27,8 @@ import scala.collection.{LinearSeq, immutable}
 abstract class StreamLike[+A, F[_], Self[+T] <: StreamLike[T, F, Self]]
   (implicit F: Deferrable[F] with MonadError[F,Throwable]) { self: Self[A] =>
 
-  def stream: Enumerator[A,F]
-  protected def transform[B](f: Enumerator[A,F] => Enumerator[B,F]): Self[B]
+  def source: Enumerator[F,A]
+  protected def transform[B](f: Enumerator[F,A] => Enumerator[F,B]): Self[B]
 
   /** Filters the iterator by the given predicate function,
     * returning only those elements that match.
@@ -46,7 +46,7 @@ abstract class StreamLike[+A, F[_], Self[+T] <: StreamLike[T, F, Self]]
     * and concatenates the results.
     */
   final def flatMap[B](f: A => Self[B]): Self[B] =
-    transform(_.flatMap(a => f(a).stream))
+    transform(_.flatMap(a => f(a).source))
 
   /** If the source is an async iterable generator, then
     * concatenates the generated async iterables.
@@ -66,7 +66,7 @@ abstract class StreamLike[+A, F[_], Self[+T] <: StreamLike[T, F, Self]]
     * effectively concatenating them.
     */
   final def ++[B >: A](rhs: Self[B]): Self[B] =
-    transform(_ ++ rhs.stream)
+    transform(_ ++ rhs.source)
 
   /** Left associative fold using the function 'f'.
     *
@@ -74,8 +74,8 @@ abstract class StreamLike[+A, F[_], Self[+T] <: StreamLike[T, F, Self]]
     * and the given function will be called with the prior result,
     * accumulating state until the end, when the summary is returned.
     */
-  def foldLeftL[S](seed: S)(f: (S,A) => S): F[S] =
-    stream.foldLeftL(seed)(f)
+  final def foldLeftL[S](seed: => S)(f: (S,A) => S): F[S] =
+    source.foldLeftL(seed)(f)
 
   /** Left associative fold with the ability to short-circuit the process.
     *
@@ -89,8 +89,8 @@ abstract class StreamLike[+A, F[_], Self[+T] <: StreamLike[T, F, Self]]
     *          to be continued, or `(false, state)` if the fold has to be stopped
     *          and the rest of the values to be ignored.
     */
-  def foldWhileL[S](seed: S)(f: (S, A) => (Boolean, S)): F[S] =
-    stream.foldWhileL(seed)(f)
+  final def foldWhileL[S](seed: => S)(f: (S, A) => (Boolean, S)): F[S] =
+    source.foldWhileL(seed)(f)
 
   /** Right associative lazy fold on `Self` using the
     * folding function 'f'.
@@ -103,139 +103,139 @@ abstract class StreamLike[+A, F[_], Self[+T] <: StreamLike[T, F, Self]]
     * For more detailed information about how this method works see the
     * documentation for `Eval[_]`.
     */
-  def foldRightL[B](lb: F[B])(f: (A, F[B]) => F[B]): F[B] =
-    stream.foldRightL(lb)(f)
+  final def foldRightL[B](lb: F[B])(f: (A, F[B]) => F[B]): F[B] =
+    source.foldRightL(lb)(f)
 
   /** Find the first element matching the predicate, if one exists. */
-  def findL[B >: A](p: B => Boolean): F[Option[B]] =
-    stream.findL(p)
+  final def findL[B >: A](p: B => Boolean): F[Option[B]] =
+    source.findL(p)
 
   /** Count the total number of elements. */
-  def countL: F[Long] =
-    stream.countL
+  final def countL: F[Long] =
+    source.countL
 
   /** Given a sequence of numbers, calculates a sum. */
-  def sumL[B >: A](implicit B: Numeric[B]): F[B] =
-    stream.sumL
+  final def sumL[B >: A](implicit B: Numeric[B]): F[B] =
+    source.sumL
 
   /** Check whether at least one element satisfies the predicate. */
-  def existsL(p: A => Boolean): F[Boolean] =
-    stream.existsL(p)
+  final def existsL(p: A => Boolean): F[Boolean] =
+    source.existsL(p)
 
   /** Check whether all elements satisfy the predicate. */
-  def forallL(p: A => Boolean): F[Boolean] =
-    stream.forallL(p)
+  final def forallL(p: A => Boolean): F[Boolean] =
+    source.forallL(p)
 
   /** Aggregates elements in a `List` and preserves order. */
   def toListL[B >: A]: F[List[B]] =
-    stream.toListL
+    source.toListL
 
   /** Returns true if there are no elements, false otherwise. */
-  def isEmptyL: F[Boolean] =
-    stream.isEmptyL
+  final def isEmptyL: F[Boolean] =
+    source.isEmptyL
 
   /** Returns true if there are elements, false otherwise. */
-  def nonEmptyL: F[Boolean] =
-    stream.nonEmptyL
+  final def nonEmptyL: F[Boolean] =
+    source.nonEmptyL
 
   /** Returns the first element in the iterable, as an option. */
-  def headL[B >: A]: F[Option[B]] =
-    stream.headL
+  final def headL[B >: A]: F[Option[B]] =
+    source.headL
 
   /** Alias for [[headL]]. */
-  def firstL[B >: A]: F[Option[B]] =
-    stream.firstL
+  final def firstL[B >: A]: F[Option[B]] =
+    source.firstL
 
   /** Returns a new sequence that will take a maximum of
     * `n` elements from the start of the source sequence.
     */
-  def take(n: Int): Self[A] =
+  final def take(n: Int): Self[A] =
     transform(_.take(n))
 
   /** Returns a new sequence that will take elements from
     * the start of the source sequence, for as long as the given
     * function `f` returns `true` and then stop.
     */
-  def takeWhile(p: A => Boolean): Self[A] =
+  final def takeWhile(p: A => Boolean): Self[A] =
     transform(_.takeWhile(p))
 
   /** Recovers from potential errors by mapping them to other
     * async iterators using the provided function.
     */
-  def onErrorHandleWith[B >: A](f: Throwable => Self[B]): Self[B] =
-    transform(_.onErrorHandleWith(ex => f(ex).stream))
+  final def onErrorHandleWith[B >: A](f: Throwable => Self[B]): Self[B] =
+    transform(_.onErrorHandleWith(ex => f(ex).source))
 
   /** Recovers from potential errors by mapping them to other
     * async iterators using the provided function.
     */
-  def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Self[B]]): Self[B] =
-    transform(_.onErrorRecoverWith { case ex if pf.isDefinedAt(ex) => pf(ex).stream })
+  final def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Self[B]]): Self[B] =
+    transform(_.onErrorRecoverWith { case ex if pf.isDefinedAt(ex) => pf(ex).source })
 
   /** Recovers from potential errors by mapping them to
     * a final element using the provided function.
     */
-  def onErrorHandle[B >: A](f: Throwable => B): Self[B] =
+  final def onErrorHandle[B >: A](f: Throwable => B): Self[B] =
     transform(_.onErrorHandle(f))
 
   /** Recovers from potential errors by mapping them to
     * a final element using the provided function.
     */
-  def onErrorRecover[B >: A](pf: PartialFunction[Throwable, B]): Self[B] =
+  final def onErrorRecover[B >: A](pf: PartialFunction[Throwable, B]): Self[B] =
     transform(_.onErrorRecover(pf))
 
   /** Drops the first `n` elements, from left to right. */
-  def drop(n: Int): Self[A] =
+  final def drop(n: Int): Self[A] =
     transform(_.drop(n))
 
   /** Triggers memoization of the iterable on the first traversal,
     * such that results will get reused on subsequent traversals.
     */
-  def memoize: Self[A] =
+  final def memoize: Self[A] =
     transform(_.memoize)
 
   /** Creates a new iterator that will consume the
     * source iterator and upon completion of the source it will
     * complete with `Unit`.
     */
-  def completedL: F[Unit] =
-    stream.completedL
+  final def completedL: F[Unit] =
+    source.completedL
 
   /** On evaluation it consumes the stream and for each element
     * execute the given function.
     */
-  def foreachL(cb: A => Unit): F[Unit] =
-    stream.foreachL(cb)
+  final def foreachL(cb: A => Unit): F[Unit] =
+    source.foreachL(cb)
 }
 
 abstract class StreamLikeBuilders[F[_], Self[+T] <: StreamLike[T, F, Self]]
   (implicit F: Deferrable[F] with MonadError[F,Throwable]) {
 
   /** Lifts a [[Enumerator]] into an iterator. */
-  def fromEnumerator[A](stream: Enumerator[A,F]): Self[A]
+  def fromEnumerator[A](stream: Enumerator[F,A]): Self[A]
 
   /** Lifts a strict value into an stream */
   def now[A](a: A): Self[A] =
-    fromEnumerator(Enumerator.now[A,F](a))
+    fromEnumerator(Enumerator.now[F,A](a))
 
   /** Builder for an error state. */
   def error[A](ex: Throwable): Self[A] =
-    fromEnumerator(Enumerator.error[A,F](ex))
+    fromEnumerator(Enumerator.error[F,A](ex))
 
   /** Builder for an empty state. */
   def empty[A]: Self[A] =
-    fromEnumerator(Enumerator.empty[A,F])
+    fromEnumerator(Enumerator.empty[F,A])
 
   /** Builder for a wait iterator state. */
   def wait[A](rest: F[Self[A]]): Self[A] =
-    fromEnumerator(Enumerator.Wait[A,F](F.map(rest)(_.stream)))
+    fromEnumerator(Enumerator.Wait[F,A](F.map(rest)(_.source)))
 
   /** Builds a next iterator state. */
   def nextEl[A](head: A, rest: F[Self[A]]): Self[A] =
-    fromEnumerator(Enumerator.nextEl[A,F](head, F.map(rest)(_.stream)))
+    fromEnumerator(Enumerator.nextEl[F,A](head, F.map(rest)(_.source)))
 
   /** Builds a next iterator state. */
   def nextSeq[A](headSeq: LinearSeq[A], rest: F[Self[A]]): Self[A] =
-    fromEnumerator(Enumerator.nextSeq[A,F](headSeq, F.map(rest)(_.stream)))
+    fromEnumerator(Enumerator.nextSeq[F,A](headSeq, F.map(rest)(_.source)))
 
   /** Lifts a strict value into an stream */
   def evalAlways[A](a: => A): Self[A] =
@@ -245,13 +245,13 @@ abstract class StreamLikeBuilders[F[_], Self[+T] <: StreamLike[T, F, Self]]
     * memoizes the result for subsequent executions.
     */
   def evalOnce[A](a: => A): Self[A] =
-    fromEnumerator(Enumerator.evalAlways[A,F](a))
+    fromEnumerator(Enumerator.evalAlways[F,A](a))
 
   /** Promote a non-strict value representing a stream
     * to a stream of the same type.
     */
   def defer[A](fa: => Self[A]): Self[A] =
-    fromEnumerator(Enumerator.defer[A,F](fa.stream))
+    fromEnumerator(Enumerator.defer[F,A](fa.source))
 
   /** Generates a range between `from` (inclusive) and `until` (exclusive),
     * with `step` as the increment.
@@ -266,21 +266,21 @@ abstract class StreamLikeBuilders[F[_], Self[+T] <: StreamLike[T, F, Self]]
     * a strict state.
     */
   def fromList[A](list: immutable.LinearSeq[A], batchSize: Int): F[Self[A]] =
-    F.map(Enumerator.fromList[A,F](list, batchSize))(fromEnumerator)
+    F.map(Enumerator.fromList[F,A](list, batchSize))(fromEnumerator)
 
   /** Converts an iterable into an async iterator. */
   def fromIterable[A](iterable: Iterable[A], batchSize: Int): F[Self[A]] =
-    F.map(Enumerator.fromIterable[A,F](iterable, batchSize))(fromEnumerator)
+    F.map(Enumerator.fromIterable[F,A](iterable, batchSize))(fromEnumerator)
 
   /** Converts an iterable into an async iterator. */
   def fromIterable[A](iterable: java.lang.Iterable[A], batchSize: Int): F[Self[A]] =
-    F.map(Enumerator.fromIterable[A,F](iterable, batchSize))(fromEnumerator)
+    F.map(Enumerator.fromIterable[F,A](iterable, batchSize))(fromEnumerator)
 
   /** Converts a `scala.collection.Iterator` into an async iterator. */
   def fromIterator[A](iterator: scala.collection.Iterator[A], batchSize: Int): F[Self[A]] =
-    F.map(Enumerator.fromIterator[A,F](iterator, batchSize))(fromEnumerator)
+    F.map(Enumerator.fromIterator[F,A](iterator, batchSize))(fromEnumerator)
 
   /** Converts a `java.util.Iterator` into an async iterator. */
   def fromIterator[A](iterator: java.util.Iterator[A], batchSize: Int): F[Self[A]] =
-    F.map(Enumerator.fromIterator[A,F](iterator, batchSize))(fromEnumerator)
+    F.map(Enumerator.fromIterator[F,A](iterator, batchSize))(fromEnumerator)
 }

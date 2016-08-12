@@ -17,11 +17,10 @@
 
 package monix.scalaz
 
-import monix.types.{Evaluable, shims}
-
+import monix.types.Evaluable
 import scalaz.{Cobind, MonadError, Monoid, Semigroup}
 
-/** Converts Monix's [[Evaluable Evaluable]]
+/** Converts Monix's [[monix.types.Evaluable Evaluable]]
   * instances into Scalaz type-classes.
   */
 trait EvaluableInstances extends EvaluableInstances1 {

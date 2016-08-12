@@ -34,6 +34,7 @@ import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
 import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.util.Try
 import scala.util.control.NonFatal
 
 /** The Observable type that implements the Reactive Pattern.
@@ -304,7 +305,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     *         the given predicate holds or not for at least one item
     */
   def existsL(p: A => Boolean): Task[Boolean] =
-    findF(p).foldLeftL(Coeval.now(false))((_, _) => true)
+    findF(p).foldLeftL(false)((_, _) => true)
 
   /** Returns a task which emits the first item for which
     * the predicate holds.
@@ -321,7 +322,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * the source, going left to right and returns a new `Task` that
     * upon evaluation will eventually emit the final result.
     */
-  def foldLeftL[R](initial: Coeval[R])(op: (R, A) => R): Task[R] =
+  def foldLeftL[R](initial: => R)(op: (R, A) => R): Task[R] =
     foldLeftF(initial)(op).headL
 
   /** Folds the source observable, from start to finish, until the
@@ -337,7 +338,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     *           that should become false in case the folding must be
     *           interrupted.
     */
-  def foldWhileL[R](initial: Coeval[R])(op: (R,A) => (Boolean, R)): Task[R] =
+  def foldWhileL[R](initial: => R)(op: (R,A) => (Boolean, R)): Task[R] =
     foldWhileF(initial)(op).headL
 
   /** Returns a `Task` that emits a single boolean, either true, in
@@ -360,9 +361,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * in error with a `NoSuchElementException`.
     */
   def firstL: Task[A] =
-    firstOrElseL(Coeval.raiseError(
-      new NoSuchElementException("firstL on empty observable")
-    ))
+    firstOrElseL(throw new NoSuchElementException("firstL on empty observable"))
 
   /** Creates a new [[monix.eval.Task Task]] that upon execution
     * will signal the first generated element of the source observable.
@@ -370,15 +369,15 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * Returns an `Option` because the source can be empty.
     */
   def firstOptionL: Task[Option[A]] =
-    map(Some.apply).firstOrElseL(Coeval.now(None))
+    map(Some.apply).firstOrElseL(None)
 
   /** Creates a new [[monix.eval.Task Task]] that upon execution
     * will signal the first generated element of the source observable.
     *
     * In case the stream was empty, then the given default
-    * [[monix.eval.Coeval Coeval]] gets evaluated and emitted.
+    * gets evaluated and emitted.
     */
-  def firstOrElseL[B >: A](default: Coeval[B]): Task[B] =
+  def firstOrElseL[B >: A](default: => B): Task[B] =
     Task.unsafeCreate { (s, c, cb) =>
       val task = SingleAssignmentCancelable()
       c push task
@@ -398,7 +397,11 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
           if (!isDone) { isDone = true; c.pop(); cb.onError(ex) }
 
         def onComplete(): Unit =
-          if (!isDone) { isDone = true; c.pop(); cb(default) }
+          if (!isDone) {
+            isDone = true
+            c.pop()
+            cb(Try(default))
+          }
       })
     }
 
@@ -407,15 +410,15 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Alias for [[firstL]]. */
   def headL: Task[A] = firstL
   /** Alias for [[firstOrElseL]]. */
-  def headOrElseL[B >: A](default: Coeval[B]): Task[B] = firstOrElseL(default)
+  def headOrElseL[B >: A](default: => B): Task[B] = firstOrElseL(default)
 
   /** Creates a new [[monix.eval.Task Task]] that upon execution
     * will signal the last generated element of the source observable.
     *
-    * In case the stream was empty, then the given default
-    * [[monix.eval.Coeval Coeval]] gets evaluated and emitted.
+    * In case the stream was empty, then the given default gets
+    * evaluated and emitted.
     */
-  def lastOrElseL[B >: A](default: Coeval[B]): Task[B] =
+  def lastOrElseL[B >: A](default: => B): Task[B] =
     Task.unsafeCreate { (s, c, cb) =>
       val task = SingleAssignmentCancelable()
       c push task
@@ -438,12 +441,8 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
 
         def onComplete(): Unit = {
           c.pop()
-
           if (isEmpty)
-            default.runAttempt match {
-              case Coeval.Now(v) => cb.onSuccess(v)
-              case Coeval.Error(ex) => cb.onError(ex)
-            }
+            cb(Try(default))
           else
             cb.onSuccess(value)
         }
@@ -456,7 +455,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * Returns an `Option` because the source can be empty.
     */
   def lastOptionL: Task[Option[A]] =
-    map(Some.apply).lastOrElseL(Coeval.now(None))
+    map(Some.apply).lastOrElseL(None)
 
   /** Returns a [[monix.eval.Task Task]] that upon execution
     * will signal the last generated element of the source observable.
@@ -465,7 +464,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * in error with a `NoSuchElementException`.
     */
   def lastL: Task[A] =
-    lastOrElseL(Coeval.raiseError(new NoSuchElementException("lastL")))
+    lastOrElseL(throw new NoSuchElementException("lastL"))
 
   /** Returns a task that emits `true` if the source observable is
     * empty, otherwise `false`.
@@ -538,10 +537,8 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * WARNING: for infinite streams the process will eventually blow up
     * with an out of memory error.
     */
-  def toListL: Task[List[A]] = {
-    val initial = Coeval(mutable.ListBuffer.empty[A])
-    foldLeftL(initial)(_ += _).map(_.toList)
-  }
+  def toListL: Task[List[A]] =
+    foldLeftL(mutable.ListBuffer.empty[A])(_ += _).map(_.toList)
 
   /** Creates a new [[monix.eval.Task Task]] that will consume the
     * source observable, executing the given callback for each element.
@@ -1390,6 +1387,13 @@ object Observable {
 
   /** Type-class instances for [[Observable]]. */
   class TypeClassInstances extends Streamable[Observable] {
+    override def now[A](a: A): Observable[A] = Observable.now(a)
+    override def evalAlways[A](f: => A): Observable[A] = Observable.evalAlways(f)
+    override def defer[A](fa: => Observable[A]): Observable[A] = Observable.defer(fa)
+    override def memoize[A](fa: Observable[A]): Observable[A] = fa.cache
+    override def evalOnce[A](f: => A): Observable[A] = Observable.evalOnce(f)
+    override def unit: Observable[Unit] = Observable.now(())
+
     override def combineK[A](x: Observable[A], y: Observable[A]): Observable[A] =
       x ++ y
     override def flatMap[A, B](fa: Observable[A])(f: (A) => Observable[B]): Observable[B] =

@@ -25,7 +25,6 @@ import scala.collection.mutable
 import scala.collection.generic.CanBuildFrom
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
-import scala.language.implicitConversions
 
 /** `Coeval` represents lazy computations that can execute synchronously.
   *
@@ -673,14 +672,5 @@ object Coeval {
     override def recoverWith[A](fa: Coeval[A])(pf: PartialFunction[Throwable, Coeval[A]]): Coeval[A] =
       fa.onErrorRecoverWith(pf)
   }
-
-  /** Implicit conversion from anything to [[Coeval.Now]].
-    *
-    * WARNING: the given `value` is strict so any expression
-    * implicitly converted into a [[Coeval]] will have been
-    * evaluated already.
-    */
-  implicit def anyToCoevalNow[A](value: A): Coeval[A] =
-    Coeval.now(value)
 }
 

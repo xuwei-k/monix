@@ -25,17 +25,19 @@ import scala.util.control.NonFatal
   * The implementation is practically wrapping
   * an [[Enumerator]] of [[Coeval]], provided for convenience.
   */
-final case class CoevalStream[+A](stream: Enumerator[A,Coeval])
-  extends StreamLike[A,Coeval,CoevalStream]()(Coeval.typeClassInstances) {
+final case class CoevalStream[+A](source: Enumerator[Coeval,A])
+  extends StreamLike[A,Coeval,CoevalStream]()(Coeval.typeClassInstances) { self =>
 
-  protected def transform[B](f: (Enumerator[A, Coeval]) => Enumerator[B, Coeval]): CoevalStream[B] = {
-    val next = try f(stream) catch { case NonFatal(ex) => Enumerator.Error[Coeval](ex) }
+  protected def transform[B](f: (Enumerator[Coeval,A]) => Enumerator[Coeval,B]): CoevalStream[B] = {
+    val next = try f(source) catch { case NonFatal(ex) => Enumerator.Error[Coeval](ex) }
     CoevalStream(next)
   }
 
-  /** Converts this lazy iterator into an async iterator. */
-  def toAsyncIterator: TaskStream[A] = {
-    def convert(stream: Enumerator[A, Coeval]): Enumerator[A, Task] =
+  /** Converts this stream into a [[TaskStream]], that is capable
+    * of asynchronous execution.
+    */
+  def toTaskStream: TaskStream[A] = {
+    def convert(stream: Enumerator[Coeval,A]): Enumerator[Task,A] =
       stream match {
         case NextEl(elem, rest) =>
           NextEl(elem, rest.task.map(convert))
@@ -48,7 +50,7 @@ final case class CoevalStream[+A](stream: Enumerator[A,Coeval])
         case Error(ex) => Error[Task](ex)
       }
 
-    TaskStream(convert(stream))
+    TaskStream(convert(source))
   }
 
   /** Consumes the stream and for each element execute the given function. */
@@ -57,6 +59,6 @@ final case class CoevalStream[+A](stream: Enumerator[A,Coeval])
 }
 
 object CoevalStream extends StreamLikeBuilders[Coeval, CoevalStream] {
-  override def fromEnumerator[A](stream: Enumerator[A, Coeval]): CoevalStream[A] =
+  override def fromEnumerator[A](stream: Enumerator[Coeval,A]): CoevalStream[A] =
     CoevalStream(stream)
 }
