@@ -508,7 +508,7 @@ object TaskStreamSuite extends BaseTestSuite {
     }
   }
 
-  test("TaskStream.onErrorHandleWith recovers") { implicit s =>
+  test("TaskStream.onErrorHandleWith recovers from stream errors") { implicit s =>
     check1 { (numbers: List[Int]) =>
       val ex = DummyException("dummy")
       val recovery = List(1,2,3)
@@ -516,6 +516,15 @@ object TaskStreamSuite extends BaseTestSuite {
         .onErrorHandleWith { case `ex` => TaskStream.fromList(recovery) }
       stream.memoize.toListL === Task.now(numbers ++ recovery)
     }
+  }
+
+  test("TaskStream.onErrorHandleWith recovers from F errors") { implicit s =>
+    val ex = DummyException("dummy")
+    val stream = (1 #:: 2 #:: TaskStream.cons(3, Task.raiseError(ex)))
+      .onErrorHandleWith { case `ex` => TaskStream(4,5) }
+
+    val f = stream.toListL.runAsync; s.tick()
+    assertEquals(f.value, Some(Success(List(1,2,3,4,5))))
   }
 
   test("TaskStream.onErrorHandle equivalence") { implicit s =>
@@ -708,7 +717,7 @@ object TaskStreamSuite extends BaseTestSuite {
   test("TaskStream.fromIterable(batch=1) (Java)") { implicit s =>
     check1 { (numbers: List[Int]) =>
       import collection.JavaConverters._
-      val task = TaskStream.fromIterable(numbers.toIterable.asJava, 1).toListL
+      val task = TaskStream.fromIterable(numbers.asJava, 1).toListL
       val expect = TaskStream.fromList(numbers, 100).toListL
       task === expect
     }
@@ -717,9 +726,111 @@ object TaskStreamSuite extends BaseTestSuite {
   test("TaskStream.fromIterable(batch=4) (Java)") { implicit s =>
     check1 { (numbers: List[Int]) =>
       import collection.JavaConverters._
-      val task = TaskStream.fromIterable(numbers.toIterable.asJava, 4).toListL
+      val task = TaskStream.fromIterable(numbers.asJava, 4).toListL
       val expect = TaskStream.fromList(numbers, 100).toListL
       task === expect
+    }
+  }
+
+  test("TaskStream.zip2") { implicit s =>
+    import TaskStream._
+    check2 { (nums1: List[Int], nums2: List[Int]) =>
+      val stream = zip2(fromList(nums1), fromList(nums2)).toListL
+      val expected = Task.now(nums1.zip(nums2))
+      stream === expected
+    }
+  }
+
+  test("TaskStream.zip2(batched left)") { implicit s =>
+    import TaskStream._
+    check2 { (nums1: List[Int], nums2: List[Int]) =>
+      val stream = zip2(fromList(nums1,4), fromList(nums2)).toListL
+      val expected = Task.now(nums1.zip(nums2))
+      stream === expected
+    }
+  }
+
+  test("TaskStream.zip2(batched right)") { implicit s =>
+    import TaskStream._
+    check2 { (nums1: List[Int], nums2: List[Int]) =>
+      val stream = zip2(fromList(nums1), fromList(nums2,4)).toListL
+      val expected = Task.now(nums1.zip(nums2))
+      stream === expected
+    }
+  }
+
+  test("TaskStream.zip2(batched both)") { implicit s =>
+    import TaskStream._
+    check2 { (nums1: List[Int], nums2: List[Int]) =>
+      val stream = zip2(fromList(nums1,4), fromList(nums2,4)).toListL
+      val expected = Task.now(nums1.zip(nums2))
+      stream === expected
+    }
+  }
+
+  test("TaskStream.zipMap2 should protect against user code") { implicit s =>
+    import TaskStream._
+    val ex = DummyException("dummy")
+    val f = zipMap2[Int,Int,Int](apply(1,2), apply(3,4))((a,b) => throw ex)
+      .toListL.runAsync
+
+    s.tick()
+    assertEquals(f.value, Some(Failure(ex)))
+  }
+
+  test("TaskStream.zip2 ends in error if left ends in error") { implicit s =>
+    import TaskStream._
+    val ex = DummyException("dummy")
+    val f = zip2[Int,Int,Int](apply(1,2) ++ raiseError(ex), apply(3,4))
+      .toListL.runAsync
+
+    s.tick()
+    assertEquals(f.value, Some(Failure(ex)))
+  }
+
+  test("TaskStream.zip2 ends in error if right ends in error") { implicit s =>
+    import TaskStream._
+    val ex = DummyException("dummy")
+    val f = zip2[Int,Int,Int](apply(1,2,3), apply(3,4) ++ raiseError(ex))
+      .toListL.runAsync
+
+    s.tick()
+    assertEquals(f.value, Some(Failure(ex)))
+  }
+
+  test("TaskStream.zip3") { implicit s =>
+    import TaskStream._
+    check2 { (nums1: List[Int], nums2: List[Int]) =>
+      val stream = zip3(fromList(nums1,32), fromList(nums2,32), fromList(nums1,32)).toListL
+      val expected = Task.now(nums1.zip(nums2).zip(nums1).map { case ((a,b), c) => (a,b,c) })
+      stream === expected
+    }
+  }
+
+  test("TaskStream.zip4") { implicit s =>
+    import TaskStream._
+    check2 { (nums1: List[Int], nums2: List[Int]) =>
+      val stream = zip4(fromList(nums1,32), fromList(nums2,32), fromList(nums1,32), fromList(nums2,32)).toListL
+      val expected = Task.now(nums1.zip(nums2).zip(nums1).zip(nums2).map { case (((a,b), c), d) => (a,b,c,d) })
+      stream === expected
+    }
+  }
+
+  test("TaskStream.zip5") { implicit s =>
+    import TaskStream._
+    check2 { (nums1: List[Int], nums2: List[Int]) =>
+      val stream = zip5(fromList(nums1,32), fromList(nums2,32), fromList(nums1,32), fromList(nums2,32), fromList(nums1,32)).toListL
+      val expected = Task.now(nums1.zip(nums2).zip(nums1).zip(nums2).zip(nums1).map { case ((((a,b), c), d), e) => (a,b,c,d,e) })
+      stream === expected
+    }
+  }
+
+  test("TaskStream.zip6") { implicit s =>
+    import TaskStream._
+    check2 { (nums1: List[Int], nums2: List[Int]) =>
+      val stream = zip6(fromList(nums1,32), fromList(nums2,32), fromList(nums1,32), fromList(nums2,32), fromList(nums1,32), fromList(nums2, 32)).toListL
+      val expected = Task.now(nums1.zip(nums2).zip(nums1).zip(nums2).zip(nums1).zip(nums2).map { case (((((a,b), c), d), e), f) => (a,b,c,d,e,f) })
+      stream === expected
     }
   }
 }

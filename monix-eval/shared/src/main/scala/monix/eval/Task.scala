@@ -510,10 +510,9 @@ sealed abstract class Task[+A] extends Serializable { self =>
   /** Zips the values of `this` and `that` and applies the given
     * mapping function on their results.
     */
-  def zipWith[B,C](that: Task[B])(f: (A,B) => C): Task[C] =
+  def zipMap[B,C](that: Task[B])(f: (A,B) => C): Task[C] =
     Task.mapBoth(this, that)(f)
 }
-
 
 object Task extends TaskInstances {
   /** Returns a new task that, when executed, will emit the result of
@@ -1103,52 +1102,52 @@ object Task extends TaskInstances {
 
   /** Pairs two [[Task]] instances, creating a new instance that will apply
     * the given mapping function to the resulting pair. */
-  def zipWith2[A1,A2,R](fa1: Task[A1], fa2: Task[A2])(f: (A1,A2) => R): Task[R] =
+  def zipMap2[A1,A2,R](fa1: Task[A1], fa2: Task[A2])(f: (A1,A2) => R): Task[R] =
     Task.mapBoth(fa1, fa2)(f)
 
   /** Pairs three [[Task]] instances. */
   def zip3[A1,A2,A3](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3]): Task[(A1,A2,A3)] =
-    zipWith3(fa1,fa2,fa3)((a1,a2,a3) => (a1,a2,a3))
+    zipMap3(fa1,fa2,fa3)((a1,a2,a3) => (a1,a2,a3))
   /** Pairs four [[Task]] instances. */
   def zip4[A1,A2,A3,A4](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4]): Task[(A1,A2,A3,A4)] =
-    zipWith4(fa1,fa2,fa3,fa4)((a1,a2,a3,a4) => (a1,a2,a3,a4))
+    zipMap4(fa1,fa2,fa3,fa4)((a1,a2,a3,a4) => (a1,a2,a3,a4))
   /** Pairs five [[Task]] instances. */
   def zip5[A1,A2,A3,A4,A5](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5]): Task[(A1,A2,A3,A4,A5)] =
-    zipWith5(fa1,fa2,fa3,fa4,fa5)((a1,a2,a3,a4,a5) => (a1,a2,a3,a4,a5))
+    zipMap5(fa1,fa2,fa3,fa4,fa5)((a1,a2,a3,a4,a5) => (a1,a2,a3,a4,a5))
   /** Pairs six [[Task]] instances. */
   def zip6[A1,A2,A3,A4,A5,A6](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5], fa6: Task[A6]): Task[(A1,A2,A3,A4,A5,A6)] =
-    zipWith6(fa1,fa2,fa3,fa4,fa5,fa6)((a1,a2,a3,a4,a5,a6) => (a1,a2,a3,a4,a5,a6))
+    zipMap6(fa1,fa2,fa3,fa4,fa5,fa6)((a1,a2,a3,a4,a5,a6) => (a1,a2,a3,a4,a5,a6))
 
   /** Pairs three [[Task]] instances,
     * applying the given mapping function to the result.
     */
-  def zipWith3[A1,A2,A3,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3])(f: (A1,A2,A3) => R): Task[R] = {
+  def zipMap3[A1,A2,A3,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3])(f: (A1,A2,A3) => R): Task[R] = {
     val fa12 = zip2(fa1, fa2)
-    zipWith2(fa12, fa3) { case ((a1,a2), a3) => f(a1,a2,a3) }
+    zipMap2(fa12, fa3) { case ((a1,a2), a3) => f(a1,a2,a3) }
   }
 
   /** Pairs four [[Task]] instances,
     * applying the given mapping function to the result.
     */
-  def zipWith4[A1,A2,A3,A4,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4])(f: (A1,A2,A3,A4) => R): Task[R] = {
+  def zipMap4[A1,A2,A3,A4,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4])(f: (A1,A2,A3,A4) => R): Task[R] = {
     val fa123 = zip3(fa1, fa2, fa3)
-    zipWith2(fa123, fa4) { case ((a1,a2,a3), a4) => f(a1,a2,a3,a4) }
+    zipMap2(fa123, fa4) { case ((a1,a2,a3), a4) => f(a1,a2,a3,a4) }
   }
 
   /** Pairs five [[Task]] instances,
     * applying the given mapping function to the result.
     */
-  def zipWith5[A1,A2,A3,A4,A5,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5])(f: (A1,A2,A3,A4,A5) => R): Task[R] = {
+  def zipMap5[A1,A2,A3,A4,A5,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5])(f: (A1,A2,A3,A4,A5) => R): Task[R] = {
     val fa1234 = zip4(fa1, fa2, fa3, fa4)
-    zipWith2(fa1234, fa5) { case ((a1,a2,a3,a4), a5) => f(a1,a2,a3,a4,a5) }
+    zipMap2(fa1234, fa5) { case ((a1,a2,a3,a4), a5) => f(a1,a2,a3,a4,a5) }
   }
 
   /** Pairs six [[Task]] instances,
     * applying the given mapping function to the result.
     */
-  def zipWith6[A1,A2,A3,A4,A5,A6,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5], fa6: Task[A6])(f: (A1,A2,A3,A4,A5,A6) => R): Task[R] = {
+  def zipMap6[A1,A2,A3,A4,A5,A6,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5], fa6: Task[A6])(f: (A1,A2,A3,A4,A5,A6) => R): Task[R] = {
     val fa12345 = zip5(fa1, fa2, fa3, fa4, fa5)
-    zipWith2(fa12345, fa6) { case ((a1,a2,a3,a4,a5), a6) => f(a1,a2,a3,a4,a5,a6) }
+    zipMap2(fa12345, fa6) { case ((a1,a2,a3,a4,a5), a6) => f(a1,a2,a3,a4,a5,a6) }
   }
 
   /** Type alias representing callbacks for [[create]] tasks. */

@@ -50,7 +50,7 @@ import scala.util.control.NonFatal
   * [[Enumerator]], initialized with the [[Task]] type.
   */
 final case class TaskStream[+A](enumerator: Enumerator[Task,A])
-  extends StreamLike[A,Task,TaskStream]()(Task.typeClassInstances) {
+  extends StreamLike[A,Task,TaskStream]()(Task.nondeterminism) {
 
   protected def transform[B](f: (Enumerator[Task,A]) => Enumerator[Task,B]): TaskStream[B] = {
     val next = try f(enumerator) catch { case NonFatal(ex) => Enumerator.raiseError[Task,B](ex) }
@@ -64,7 +64,7 @@ final case class TaskStream[+A](enumerator: Enumerator[Task,A])
     foreachL(f).runAsync
 }
 
-object TaskStream extends StreamLikeBuilders[Task, TaskStream] {
+object TaskStream extends StreamLikeBuilders[Task, TaskStream]()(Task.nondeterminism) {
   override def fromEnumerator[A](stream: Enumerator[Task,A]): TaskStream[A] =
     TaskStream(stream)
 }

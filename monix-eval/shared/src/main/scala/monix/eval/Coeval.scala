@@ -282,7 +282,7 @@ sealed abstract class Coeval[+A] extends Serializable { self =>
   /** Zips the values of `this` and `that` and applies the given
     * mapping function on their results.
     */
-  def zipWith[B,C](that: Coeval[B])(f: (A,B) => C): Coeval[C] =
+  def zipMap[B,C](that: Coeval[B])(f: (A,B) => C): Coeval[C] =
     for (a <- this; b <- that) yield f(a,b)
 }
 
@@ -340,7 +340,7 @@ object Coeval {
   def sequence[A, M[X] <: TraversableOnce[X]](sources: M[Coeval[A]])
     (implicit cbf: CanBuildFrom[M[Coeval[A]], A, M[A]]): Coeval[M[A]] = {
     val init = evalAlways(cbf(sources))
-    val r = sources.foldLeft(init)((acc,elem) => acc.zipWith(elem)(_ += _))
+    val r = sources.foldLeft(init)((acc,elem) => acc.zipMap(elem)(_ += _))
     r.map(_.result())
   }
 
@@ -352,72 +352,80 @@ object Coeval {
   def traverse[A, B, M[X] <: TraversableOnce[X]](sources: M[A])(f: A => Coeval[B])
     (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Coeval[M[B]] = {
     val init = evalAlways(cbf(sources))
-    val r = sources.foldLeft(init)((acc,elem) => acc.zipWith(f(elem))(_ += _))
+    val r = sources.foldLeft(init)((acc,elem) => acc.zipMap(f(elem))(_ += _))
     r.map(_.result())
   }
 
   /** Zips together multiple [[Coeval]] instances. */
   def zipList[A](sources: Coeval[A]*): Coeval[List[A]] = {
     val init = evalAlways(mutable.ListBuffer.empty[A])
-    val r = sources.foldLeft(init)((acc, elem) => acc.zipWith(elem)(_ += _))
+    val r = sources.foldLeft(init)((acc, elem) => acc.zipMap(elem)(_ += _))
     r.map(_.toList)
   }
 
   /** Pairs two [[Coeval]] instances. */
   def zip2[A1, A2, R](fa1: Coeval[A1], fa2: Coeval[A2]): Coeval[(A1, A2)] =
-    fa1.zipWith(fa2)((_, _))
+    fa1.zipMap(fa2)((_, _))
 
   /** Pairs two [[Coeval]] instances, creating a new instance that will apply
     * the given mapping function to the resulting pair. */
-  def zipWith2[A1, A2, R](fa1: Coeval[A1], fa2: Coeval[A2])(f: (A1, A2) => R): Coeval[R] =
-    fa1.zipWith(fa2)(f)
+  def zipMap2[A1, A2, R](fa1: Coeval[A1], fa2: Coeval[A2])(f: (A1, A2) => R): Coeval[R] =
+    fa1.zipMap(fa2)(f)
 
   /** Pairs three [[Coeval]] instances. */
   def zip3[A1, A2, A3](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3]): Coeval[(A1, A2, A3)] =
-    zipWith3(fa1, fa2, fa3)((a1, a2, a3) => (a1, a2, a3))
+    zipMap3(fa1, fa2, fa3)((a1, a2, a3) => (a1, a2, a3))
 
   /** Pairs four [[Coeval]] instances. */
   def zip4[A1, A2, A3, A4](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4]): Coeval[(A1, A2, A3, A4)] =
-    zipWith4(fa1, fa2, fa3, fa4)((a1, a2, a3, a4) => (a1, a2, a3, a4))
+    zipMap4(fa1, fa2, fa3, fa4)((a1, a2, a3, a4) => (a1, a2, a3, a4))
 
   /** Pairs five [[Coeval]] instances. */
   def zip5[A1, A2, A3, A4, A5](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5]): Coeval[(A1, A2, A3, A4, A5)] =
-    zipWith5(fa1, fa2, fa3, fa4, fa5)((a1, a2, a3, a4, a5) => (a1, a2, a3, a4, a5))
+    zipMap5(fa1, fa2, fa3, fa4, fa5)((a1, a2, a3, a4, a5) => (a1, a2, a3, a4, a5))
 
   /** Pairs six [[Coeval]] instances. */
   def zip6[A1, A2, A3, A4, A5, A6](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5], fa6: Coeval[A6]): Coeval[(A1, A2, A3, A4, A5, A6)] =
-    zipWith6(fa1, fa2, fa3, fa4, fa5, fa6)((a1, a2, a3, a4, a5, a6) => (a1, a2, a3, a4, a5, a6))
+    zipMap6(fa1, fa2, fa3, fa4, fa5, fa6)((a1, a2, a3, a4, a5, a6) => (a1, a2, a3, a4, a5, a6))
 
   /** Pairs three [[Coeval]] instances,
     * applying the given mapping function to the result.
     */
-  def zipWith3[A1, A2, A3, R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3])(f: (A1, A2, A3) => R): Coeval[R] = {
+  def zipMap3[A1, A2, A3, R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3])
+    (f: (A1, A2, A3) => R): Coeval[R] = {
+
     val fa12 = zip2(fa1, fa2)
-    zipWith2(fa12, fa3) { case ((a1, a2), a3) => f(a1, a2, a3) }
+    zipMap2(fa12, fa3) { case ((a1, a2), a3) => f(a1, a2, a3) }
   }
 
   /** Pairs four [[Coeval]] instances,
     * applying the given mapping function to the result.
     */
-  def zipWith4[A1, A2, A3, A4, R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4])(f: (A1, A2, A3, A4) => R): Coeval[R] = {
+  def zipMap4[A1, A2, A3, A4, R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4])
+    (f: (A1, A2, A3, A4) => R): Coeval[R] = {
+
     val fa123 = zip3(fa1, fa2, fa3)
-    zipWith2(fa123, fa4) { case ((a1, a2, a3), a4) => f(a1, a2, a3, a4) }
+    zipMap2(fa123, fa4) { case ((a1, a2, a3), a4) => f(a1, a2, a3, a4) }
   }
 
   /** Pairs five [[Coeval]] instances,
     * applying the given mapping function to the result.
     */
-  def zipWith5[A1, A2, A3, A4, A5, R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5])(f: (A1, A2, A3, A4, A5) => R): Coeval[R] = {
+  def zipMap5[A1, A2, A3, A4, A5, R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5])
+    (f: (A1, A2, A3, A4, A5) => R): Coeval[R] = {
+
     val fa1234 = zip4(fa1, fa2, fa3, fa4)
-    zipWith2(fa1234, fa5) { case ((a1, a2, a3, a4), a5) => f(a1, a2, a3, a4, a5) }
+    zipMap2(fa1234, fa5) { case ((a1, a2, a3, a4), a5) => f(a1, a2, a3, a4, a5) }
   }
 
   /** Pairs six [[Coeval]] instances,
     * applying the given mapping function to the result.
     */
-  def zipWith6[A1, A2, A3, A4, A5, A6, R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5], fa6: Coeval[A6])(f: (A1, A2, A3, A4, A5, A6) => R): Coeval[R] = {
+  def zipMap6[A1, A2, A3, A4, A5, A6, R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5], fa6: Coeval[A6])
+    (f: (A1, A2, A3, A4, A5, A6) => R): Coeval[R] = {
+
     val fa12345 = zip5(fa1, fa2, fa3, fa4, fa5)
-    zipWith2(fa12345, fa6) { case ((a1, a2, a3, a4, a5), a6) => f(a1, a2, a3, a4, a5, a6) }
+    zipMap2(fa12345, fa6) { case ((a1, a2, a3, a4, a5), a6) => f(a1, a2, a3, a4, a5, a6) }
   }
 
   /** The `Attempt` represents a strict, already evaluated result

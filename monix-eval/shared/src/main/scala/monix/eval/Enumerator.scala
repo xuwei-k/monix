@@ -56,6 +56,11 @@ import scala.util.control.NonFatal
   * Therefore consider [[Enumerator]] as a building block and prefer
   * [[TaskStream]] and [[CoevalStream]] in normal usage.
   *
+  * ATTRIBUTION: this type was inspired by the `Streaming` type in the
+  * Typelevel Cats library (later moved to Typelevel's Dogs :)), originally
+  * committed in Cats by Erik Osheim. Several operations from `Streaming`
+  * were adapted for `Enumerator`, like `flatMap`, `foldRightL` and `zipMap`.
+  *
   * @tparam F is the monadic type that controls evaluation; note that it
   *         must be stack-safe in its `map` and `flatMap` operations
   *
@@ -67,43 +72,39 @@ sealed abstract class Enumerator[F[_],+A]
   /** Filters the stream by the given predicate function,
     * returning only those elements that match.
     */
-  final def filter(p: A => Boolean)(implicit F: Functor[F]): Enumerator[F,A] =
-    this match {
+  final def filter(p: A => Boolean)(implicit F: Functor[F]): Enumerator[F,A] = {
+    try this match {
       case ref @ Cons(head, tail) =>
-        try {
-          val rest = F.map(tail)(_.filter(p))
-          if (p(head)) Cons[F,A](head, rest) else ConsSeq[F,A](Nil, rest) }
-        catch {
-          case NonFatal(ex) => Halt(Some(ex))
-        }
+        val rest = F.map(tail)(_.filter(p))
+        if (p(head)) Cons[F,A](head, rest) else ConsSeq[F,A](Nil, rest)
       case ConsSeq(head, tail) =>
-        try {
-          val rest = F.map(tail)(_.filter(p))
-          head.filter(p) match {
-            case Nil => ConsSeq[F,A](Nil, rest)
-            case filtered => ConsSeq[F,A](filtered, rest)
-          }
-        }
-        catch {
-          case NonFatal(ex) => Halt(Some(ex))
+        val rest = F.map(tail)(_.filter(p))
+        head.filter(p) match {
+          case Nil => ConsSeq[F,A](Nil, rest)
+          case filtered => ConsSeq[F,A](filtered, rest)
         }
       case empty @ Halt(_) =>
         empty
     }
+    catch {
+      case NonFatal(ex) => Halt(Some(ex))
+    }
+  }
 
   /** Returns a new iterable by mapping the supplied function
     * over the elements of the source.
     */
   final def map[B](f: A => B)(implicit F: Functor[F]): Enumerator[F,B] = {
-    this match {
+    try this match {
       case Cons(head, tail) =>
-        try { Cons[F,B](f(head), F.map(tail)(_.map(f))) }
-        catch { case NonFatal(ex) => Halt(Some(ex)) }
+        Cons[F,B](f(head), F.map(tail)(_.map(f)))
       case ConsSeq(head, rest) =>
-        try { ConsSeq[F,B](head.map(f), F.map(rest)(_.map(f))) }
-        catch { case NonFatal(ex) => Halt(Some(ex)) }
+        ConsSeq[F,B](head.map(f), F.map(rest)(_.map(f)))
       case empty @ Halt(_) =>
         empty
+    }
+    catch {
+      case NonFatal(ex) => Halt(Some(ex))
     }
   }
 
@@ -113,22 +114,21 @@ sealed abstract class Enumerator[F[_],+A]
   final def flatMap[B](f: A => Enumerator[F,B])
     (implicit F: Deferrable[F]): Enumerator[F,B] = {
 
-    this match {
+    try this match {
       case Cons(head, tail) =>
-        try { f(head) concatF F.map(tail)(_.flatMap(f)) }
-        catch { case NonFatal(ex) => Halt(Some(ex)) }
+        f(head) concatF F.map(tail)(_.flatMap(f))
 
       case ConsSeq(list, rest) =>
-        try {
-          if (list.isEmpty)
-            ConsSeq[F,B](Nil, F.map(rest)(_.flatMap(f)))
-          else
-            f(list.head) concatF F.evalAlways(ConsSeq[F,A](list.tail, rest).flatMap(f))
-        } catch {
-          case NonFatal(ex) => Halt(Some(ex))
-        }
+        if (list.isEmpty)
+          ConsSeq[F,B](Nil, F.map(rest)(_.flatMap(f)))
+        else
+          f(list.head) concatF F.evalAlways(ConsSeq[F,A](list.tail, rest).flatMap(f))
+
       case empty @ Halt(_) =>
         empty
+    }
+    catch {
+      case NonFatal(ex) => Halt(Some(ex))
     }
   }
 
@@ -191,25 +191,20 @@ sealed abstract class Enumerator[F[_],+A]
     (implicit F: Evaluable[F]): F[S] = {
 
     def loop(self: Enumerator[F,A], state: S): F[S] =
-      self match {
+      try self match {
         case Halt(None) =>
-          try F.pure(state) catch { case NonFatal(ex) => F.raiseError(ex) }
+          F.pure(state)
         case Halt(Some(ex)) =>
           F.raiseError(ex)
         case Cons(a, next) =>
-          try {
-            val newState = f(state, a)
-            F.flatMap(next)(loop(_, newState))
-          } catch {
-            case NonFatal(ex) => F.raiseError(ex)
-          }
+          val newState = f(state, a)
+          F.flatMap(next)(loop(_, newState))
         case ConsSeq(list, next) =>
-          try {
-            val newState = list.foldLeft(state)(f)
-            F.flatMap(next)(loop(_, newState))
-          } catch {
-            case NonFatal(ex) => F.raiseError(ex)
-          }
+          val newState = list.foldLeft(state)(f)
+          F.flatMap(next)(loop(_, newState))
+      }
+      catch {
+        case NonFatal(ex) => F.raiseError(ex)
       }
 
     F.flatMap(F.evalAlways(seed))(loop(self, _))
@@ -231,37 +226,31 @@ sealed abstract class Enumerator[F[_],+A]
     (implicit F: Evaluable[F]): F[S] = {
 
     def loop(self: Enumerator[F,A], acc: S): F[S] =
-      self match {
-        case Halt(None) =>
-          try F.pure(acc) catch { case NonFatal(ex) => F.raiseError(ex) }
-        case Halt(Some(ex)) =>
-          F.raiseError(ex)
+      try self match {
+        case Halt(None) => F.pure(acc)
+        case Halt(Some(ex)) => F.raiseError(ex)
+
         case Cons(a, next) =>
-          try {
-            val (continue, newState) = f(acc, a)
-            if (!continue) F.pure(newState) else
-              F.flatMap(next)(loop(_, newState))
-          } catch {
-            case NonFatal(ex) => F.raiseError(ex)
-          }
+          val (continue, newState) = f(acc, a)
+          if (!continue) F.pure(newState) else
+            F.flatMap(next)(loop(_, newState))
+
         case ConsSeq(list, next) =>
-          try {
-            var continue = true
-            var newState = acc
-            val iter = list.iterator
+          var continue = true
+          var newState = acc
+          val iter = list.iterator
 
-            while (continue && iter.hasNext) {
-              val (c,s) = f(newState, iter.next())
-              newState = s
-              continue = c
-            }
+          while (continue && iter.hasNext) {
+            val (c,s) = f(newState, iter.next())
+            newState = s
+            continue = c
+          }
 
-            if (!continue) F.pure(newState) else
-              F.flatMap(next)(loop(_, newState))
-          }
-          catch {
-            case NonFatal(ex) => F.raiseError(ex)
-          }
+          if (!continue) F.pure(newState) else
+            F.flatMap(next)(loop(_, newState))
+      }
+      catch {
+        case NonFatal(ex) => F.raiseError(ex)
       }
 
     F.flatMap(F.evalAlways(seed))(loop(self, _))
@@ -281,28 +270,24 @@ sealed abstract class Enumerator[F[_],+A]
   final def foldRightL[B](lb: F[B])(f: (A, F[B]) => F[B])
     (implicit F: MonadError[F, Throwable]): F[B] = {
 
-    this match {
+    try this match {
       case Halt(None) => lb
-      case Halt(Some(ex)) =>
-        F.raiseError(ex)
+      case Halt(Some(ex)) => F.raiseError(ex)
       case Cons(a, next) =>
-        try {
-          f(a, F.flatMap(next)(_.foldRightL(lb)(f)))
-        } catch {
-          case NonFatal(ex) => F.raiseError(ex)
-        }
+        f(a, F.flatMap(next)(_.foldRightL(lb)(f)))
+
       case ConsSeq(list, next) =>
-        try {
-          if (list.isEmpty) F.flatMap(next)(_.foldRightL(lb)(f))
-          else {
-            val a = list.head
-            val tail = list.tail
-            val rest = F.pure(ConsSeq[F,A](tail, next))
-            f(a, F.flatMap(rest)(_.foldRightL(lb)(f)))
-          }
-        } catch {
-          case NonFatal(ex) => F.raiseError(ex)
+        if (list.isEmpty)
+          F.flatMap(next)(_.foldRightL(lb)(f))
+        else {
+          val a = list.head
+          val tail = list.tail
+          val rest = F.pure(ConsSeq[F,A](tail, next))
+          f(a, F.flatMap(rest)(_.foldRightL(lb)(f)))
         }
+    }
+    catch {
+      case NonFatal(ex) => F.raiseError(ex)
     }
   }
 
@@ -400,8 +385,8 @@ sealed abstract class Enumerator[F[_],+A]
     * the start of the source sequence, for as long as the given
     * function `f` returns `true` and then stop.
     */
-  final def takeWhile(p: A => Boolean)(implicit F: Applicative[F]): Enumerator[F,A] =
-    this match {
+  final def takeWhile(p: A => Boolean)(implicit F: Applicative[F]): Enumerator[F,A] = {
+    try this match {
       case empty @ Halt(None) => empty
       case error @ Halt(Some(_)) => error
       case Cons(a, next) =>
@@ -418,6 +403,10 @@ sealed abstract class Enumerator[F[_],+A]
           case NonFatal(ex) => Halt(Some(ex))
         }
     }
+    catch {
+      case NonFatal(ex) => Halt(Some(ex))
+    }
+  }
 
   /** Recovers from potential errors by mapping them to other
     * async iterators using the provided function.
@@ -425,13 +414,21 @@ sealed abstract class Enumerator[F[_],+A]
   final def onErrorHandleWith[B >: A](f: Throwable => Enumerator[F,B])
     (implicit F: MonadError[F,Throwable]): Enumerator[F,B] = {
 
+    def protectF(tailF: F[Enumerator[F, A]]): F[Enumerator[F, B]] = {
+      // Protecting F itself; we have to force the type system
+      // here, because F[_] is invariant
+      val withHandler = F.handleError(tailF.asInstanceOf[F[Enumerator[F,B]]])(ex => f(ex))
+      // Recursive call for handling the rest of the stream
+      F.map(withHandler)(_.onErrorHandleWith(f))
+    }
+
     this match {
       case empty @ Halt(None) =>
         empty
-      case Cons(a, next) =>
-        Cons[F,B](a, F.map(next)(_.onErrorHandleWith(f)))
-      case ConsSeq(seq, next) =>
-        ConsSeq[F,B](seq, F.map(next)(_.onErrorHandleWith(f)))
+      case Cons(a, tailF) =>
+        Cons[F,B](a, protectF(tailF))
+      case ConsSeq(seq, tailF) =>
+        ConsSeq[F,B](seq, protectF(tailF))
       case Halt(Some(ex)) =>
         try f(ex) catch { case NonFatal(err) => Halt(Some(err)) }
     }
@@ -526,6 +523,66 @@ sealed abstract class Enumerator[F[_],+A]
     }
 
     loop(F.pure(this))
+  }
+
+  /** Zips two enumerators together.
+    *
+    * The length of the result will be the shorter of the two
+    * arguments.
+    */
+  final def zip[B](other: Enumerator[F,B])
+    (implicit F: Deferrable[F]): Enumerator[F, (A,B)] =
+    zipMap(other)((_,_))
+
+  /** Lazily zip two enumerators together, using the given
+    * mapping function `f` to produce output values.
+    *
+    * The length of the result will be the shorter of the two
+    * arguments.
+    */
+  final def zipMap[B,R](other: Enumerator[F,B])(f: (A,B) => R)
+    (implicit F: Deferrable[F]): Enumerator[F, R] = {
+
+    try {
+      (this, other) match {
+        case (Halt(None), _) | (_, Halt(None)) => Halt[F](None)
+        case (error @ Halt(Some(_)), _) => error
+        case (_, error @ Halt(Some(_))) => error
+
+        case (Cons(a, ta), Cons(b, tb)) =>
+          Cons[F,R](f(a,b), F.map2(ta, tb)((ra, rb) => ra.zipMap(rb)(f)))
+        case (ConsSeq(seqA, ta), Cons(b, tb)) =>
+          if (seqA.isEmpty)
+            ConsSeq[F,R](Nil, F.map(ta)(_.zipMap(other)(f)))
+          else {
+            val nextA = ConsSeq[F,A](seqA.tail, ta)
+            Cons[F,R](f(seqA.head,b), F.map(tb)(rb => nextA.zipMap(rb)(f)))
+          }
+        case (lh @ Cons(a, ta), ConsSeq(seqB, tb)) =>
+          if (seqB.isEmpty)
+            ConsSeq[F,R](Nil, F.map(tb)(rb => lh.zipMap(rb)(f)))
+          else {
+            // Scala compiler has problems, so must do asInstanceOf
+            val nextB = ConsSeq[F,B](seqB.tail, tb.asInstanceOf[F[Enumerator[F,B]]])
+            Cons[F,R](f(a,seqB.head), F.map(ta)(_.zipMap(nextB)(f)))
+          }
+        case (lh @ ConsSeq(seqA, ta), rh @ ConsSeq(seqB, tb)) =>
+          if (seqA.isEmpty)
+            ConsSeq[F,R](Nil, F.map(ta)(ra => ra.zipMap(rh)(f)))
+          else if (seqB.isEmpty)
+            ConsSeq[F,R](Nil, F.map(tb)(rb => lh.zipMap(rb)(f)))
+          else {
+            // Scala compiler has problems, so must do asInstanceOf
+            val ctb = tb.asInstanceOf[F[Enumerator[F,B]]]
+            val nextA = ConsSeq[F,A](seqA.tail, ta)
+            val nextB = ConsSeq[F,B](seqB.tail, ctb)
+            Cons[F,R](f(seqA.head,seqB.head), F.evalAlways(nextA.zipMap(nextB)(f)))
+          }
+      }
+    }
+    catch {
+      case NonFatal(ex) => Halt(Some(ex))
+    }
   }
 }
 
@@ -622,6 +679,117 @@ object Enumerator {
     */
   def defer[F[_],A](fa: => Enumerator[F,A])(implicit F: Deferrable[F]): Enumerator[F,A] =
     ConsSeq[F,A](Nil, F.evalAlways(fa))
+
+  /** Zips two enumerators together.
+    *
+    * The length of the result will be the shorter of the two
+    * arguments.
+    */
+  def zip2[F[_],A1,A2,R](fa1: Enumerator[F,A1], fa2: Enumerator[F,A2])
+    (implicit F: Deferrable[F]): Enumerator[F,(A1,A2)] =
+    fa1.zip(fa2)
+
+  /** Lazily zip two enumerators together, using the given
+    * mapping function `f` to produce output values.
+    *
+    * The length of the result will be the shorter of the two
+    * arguments.
+    */
+  def zipMap2[F[_],A1,A2,R](fa1: Enumerator[F,A1], fa2: Enumerator[F,A2])(f: (A1,A2) => R)
+    (implicit F: Deferrable[F]): Enumerator[F,R] =
+    fa1.zipMap(fa2)(f)
+
+  /** Zips three enumerators together.
+    *
+    * The length of the result will be the shorter of the three
+    * arguments.
+    */
+  def zip3[F[_],A1,A2,A3](fa1: Enumerator[F,A1], fa2: Enumerator[F,A2], fa3: Enumerator[F,A3])
+    (implicit F: Deferrable[F]): Enumerator[F,(A1,A2,A3)] =
+    zipMap3(fa1,fa2,fa3)((a1,a2,a3) => (a1,a2,a3))
+
+  /** Zips four enumerators together.
+    *
+    * The length of the result will be the shorter of the fiyr
+    * arguments.
+    */
+  def zip4[F[_],A1,A2,A3,A4](fa1: Enumerator[F,A1], fa2: Enumerator[F,A2], fa3: Enumerator[F,A3], fa4: Enumerator[F,A4])
+    (implicit F: Deferrable[F]): Enumerator[F,(A1,A2,A3,A4)] =
+    zipMap4(fa1,fa2,fa3,fa4)((a1,a2,a3,a4) => (a1,a2,a3,a4))
+
+  /** Zips five enumerators together.
+    *
+    * The length of the result will be the shorter of the five
+    * arguments.
+    */
+  def zip5[F[_],A1,A2,A3,A4,A5](fa1: Enumerator[F,A1], fa2: Enumerator[F,A2], fa3: Enumerator[F,A3], fa4: Enumerator[F,A4], fa5: Enumerator[F,A5])
+    (implicit F: Deferrable[F]): Enumerator[F,(A1,A2,A3,A4,A5)] =
+    zipMap5(fa1,fa2,fa3,fa4,fa5)((a1,a2,a3,a4,a5) => (a1,a2,a3,a4,a5))
+
+  /** Zips six enumerators together.
+    *
+    * The length of the result will be the shorter of the six
+    * arguments.
+    */
+  def zip6[F[_],A1,A2,A3,A4,A5,A6](fa1: Enumerator[F,A1], fa2: Enumerator[F,A2], fa3: Enumerator[F,A3], fa4: Enumerator[F,A4], fa5: Enumerator[F,A5], fa6: Enumerator[F,A6])
+    (implicit F: Deferrable[F]): Enumerator[F,(A1,A2,A3,A4,A5,A6)] =
+    zipMap6(fa1,fa2,fa3,fa4,fa5,fa6)((a1,a2,a3,a4,a5,a6) => (a1,a2,a3,a4,a5,a6))
+
+  /** Lazily zip three enumerators together, using the given
+    * mapping function `f` to produce output values.
+    *
+    * The length of the result will be the shorter of the three
+    * arguments.
+    */
+  def zipMap3[F[_],A1,A2,A3,R](fa1: Enumerator[F,A1], fa2: Enumerator[F,A2], fa3: Enumerator[F,A3])
+    (f: (A1,A2,A3) => R)
+    (implicit F: Deferrable[F]): Enumerator[F,R] = {
+
+    val fa12 = zip2(fa1, fa2)
+    zipMap2(fa12, fa3) { case ((a1,a2), a3) => f(a1,a2,a3) }
+  }
+
+  /** Lazily zip four enumerators together, using the given
+    * mapping function `f` to produce output values.
+    *
+    * The length of the result will be the shorter of the four
+    * arguments.
+    */
+  def zipMap4[F[_],A1,A2,A3,A4,R](fa1: Enumerator[F,A1], fa2: Enumerator[F,A2], fa3: Enumerator[F,A3], fa4: Enumerator[F,A4])
+    (f: (A1,A2,A3,A4) => R)
+    (implicit F: Deferrable[F]): Enumerator[F,R] = {
+
+    val fa123 = zip3(fa1, fa2, fa3)
+    zipMap2(fa123, fa4) { case ((a1,a2,a3), a4) => f(a1,a2,a3,a4) }
+  }
+
+  /** Lazily zip five enumerators together, using the given
+    * mapping function `f` to produce output values.
+    *
+    * The length of the result will be the shorter of the five
+    * arguments.
+    */
+  def zipMap5[F[_],A1,A2,A3,A4,A5,R](fa1: Enumerator[F,A1], fa2: Enumerator[F,A2], fa3: Enumerator[F,A3], fa4: Enumerator[F,A4], fa5: Enumerator[F,A5])
+    (f: (A1,A2,A3,A4,A5) => R)
+    (implicit F: Deferrable[F]): Enumerator[F,R] = {
+
+    val fa1234 = zip4(fa1, fa2, fa3, fa4)
+    zipMap2(fa1234, fa5) { case ((a1,a2,a3,a4), a5) => f(a1,a2,a3,a4,a5) }
+  }
+
+  /** Lazily zip six enumerators together, using the given
+    * mapping function `f` to produce output values.
+    *
+    * The length of the result will be the shorter of the six
+    * arguments.
+    */
+  def zipMap6[F[_],A1,A2,A3,A4,A5,A6,R](fa1: Enumerator[F,A1], fa2: Enumerator[F,A2], fa3: Enumerator[F,A3], fa4: Enumerator[F,A4], fa5: Enumerator[F,A5], fa6: Enumerator[F,A6])
+    (f: (A1,A2,A3,A4,A5,A6) => R)
+    (implicit F: Deferrable[F]): Enumerator[F,R] = {
+
+    val fa12345 = zip5(fa1, fa2, fa3, fa4, fa5)
+    zipMap2(fa12345, fa6) { case ((a1,a2,a3,a4,a5), a6) => f(a1,a2,a3,a4,a5,a6) }
+  }
 
   /** Creates a stream that on evaluation repeats the
     * given elements, ad infinitum.

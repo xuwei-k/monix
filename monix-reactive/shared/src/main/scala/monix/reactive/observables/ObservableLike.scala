@@ -383,13 +383,13 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * the observables emits fewer events than the other, then the rest
     * of the unpaired events are ignored.
     *
-    * See [[zipWith]] for an alternative that pairs the items
+    * See [[zipMap]] for an alternative that pairs the items
     * in strict sequence.
     *
     * @param other is an observable that gets paired with the source
     * @param f is a mapping function over the generated pairs
     */
-  def combineLatestWith[B,R](other: Observable[B])(f: (A,B) => R): Self[R] =
+  def combineLatestMap[B,R](other: Observable[B])(f: (A,B) => R): Self[R] =
     self.transform(self => new CombineLatest2Observable[A,B,R](self, other)(f))
 
   /** Ignores all items emitted by the source Observable and only calls
@@ -1760,13 +1760,13 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * will be the result of the function applied to the second item
     * emitted by each of those observables; and so forth.
     *
-    * See [[combineLatestWith]] for a more relaxed alternative that doesn't
+    * See [[combineLatestMap]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
     *
     * @param other is an observable that gets paired with the source
     * @param f is a mapping function over the generated pairs
     */
-  def zipWith[B,R](other: Observable[B])(f: (A,B) => R): Self[R] =
+  def zipMap[B,R](other: Observable[B])(f: (A,B) => R): Self[R] =
     self.transform(self => new Zip2Observable[A,B,R](self, other)(f))
 
   /** Zips the emitted elements of the source with their indices. */

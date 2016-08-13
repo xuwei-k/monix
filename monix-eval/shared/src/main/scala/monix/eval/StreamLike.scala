@@ -132,6 +132,23 @@ abstract class StreamLike[+A, F[_], Self[+T] <: StreamLike[T, F, Self]]
   final def foldRightL[B](lb: F[B])(f: (A, F[B]) => F[B]): F[B] =
     enumerator.foldRightL(lb)(f)
 
+  /** Zips two streams together.
+    *
+    * The length of the result will be the shorter of the two
+    * arguments.
+    */
+  final def zip[B](other: Self[B]): Self[(A,B)] =
+    transform(enum => enum.zip(other.enumerator))
+
+  /** Zip two streams together, using the given
+    * mapping function `f` to produce output values.
+    *
+    * The length of the result will be the shorter of the two
+    * arguments.
+    */
+  final def zipMap[B,R](other: Self[B])(f: (A,B) => R): Self[R] =
+    transform(enum => enum.zipMap(other.enumerator)(f))
+
   /** Find the first element matching the predicate, if one exists. */
   final def findL[B >: A](p: B => Boolean): F[Option[B]] =
     enumerator.findL(p)
@@ -317,6 +334,107 @@ abstract class StreamLikeBuilders[F[_], Self[+T] <: StreamLike[T, F, Self]]
     */
   def halt[A](ex: Option[Throwable]): Self[A] =
     fromEnumerator(Halt(ex))
+
+  /** Zips two streams together.
+    *
+    * The length of the result will be the shorter of the two
+    * arguments.
+    */
+  def zip2[A1,A2,R](fa1: Self[A1], fa2: Self[A2]): Self[(A1,A2)] =
+    fa1.zip(fa2)
+
+  /** Zip two streams together, using the given
+    * mapping function `f` to produce output values.
+    *
+    * The length of the result will be the shorter of the two
+    * arguments.
+    */
+  def zipMap2[A1,A2,R](fa1: Self[A1], fa2: Self[A2])(f: (A1,A2) => R): Self[R] =
+    fa1.zipMap(fa2)(f)
+
+  /** Zips three streams together.
+    *
+    * The length of the result will be the shorter of the three
+    * arguments.
+    */
+  def zip3[A1,A2,A3](fa1: Self[A1], fa2: Self[A2], fa3: Self[A3]): Self[(A1,A2,A3)] =
+    zipMap3(fa1,fa2,fa3)((a1,a2,a3) => (a1,a2,a3))
+
+  /** Zips four streams together.
+    *
+    * The length of the result will be the shorter of the four
+    * arguments.
+    */
+  def zip4[A1,A2,A3,A4](fa1: Self[A1], fa2: Self[A2], fa3: Self[A3], fa4: Self[A4]): Self[(A1,A2,A3,A4)] =
+    zipMap4(fa1,fa2,fa3,fa4)((a1,a2,a3,a4) => (a1,a2,a3,a4))
+
+  /** Zips five streams together.
+    *
+    * The length of the result will be the shorter of the five
+    * arguments.
+    */
+  def zip5[A1,A2,A3,A4,A5](fa1: Self[A1], fa2: Self[A2], fa3: Self[A3], fa4: Self[A4], fa5: Self[A5]): Self[(A1,A2,A3,A4,A5)] =
+    zipMap5(fa1,fa2,fa3,fa4,fa5)((a1,a2,a3,a4,a5) => (a1,a2,a3,a4,a5))
+
+  /** Zips six streams together.
+    *
+    * The length of the result will be the shorter of the six
+    * arguments.
+    */
+  def zip6[A1,A2,A3,A4,A5,A6](fa1: Self[A1], fa2: Self[A2], fa3: Self[A3], fa4: Self[A4], fa5: Self[A5], fa6: Self[A6]): Self[(A1,A2,A3,A4,A5,A6)] =
+    zipMap6(fa1,fa2,fa3,fa4,fa5,fa6)((a1,a2,a3,a4,a5,a6) => (a1,a2,a3,a4,a5,a6))
+
+  /** Zip three streams together, using the given
+    * mapping function `f` to produce output values.
+    *
+    * The length of the result will be the shorter of the three
+    * arguments.
+    */
+  def zipMap3[A1,A2,A3,R](fa1: Self[A1], fa2: Self[A2], fa3: Self[A3])
+    (f: (A1,A2,A3) => R): Self[R] = {
+
+    val fa12 = zip2(fa1, fa2)
+    zipMap2(fa12, fa3) { case ((a1,a2), a3) => f(a1,a2,a3) }
+  }
+
+  /** Zip four streams together, using the given
+    * mapping function `f` to produce output values.
+    *
+    * The length of the result will be the shorter of the four
+    * arguments.
+    */
+  def zipMap4[A1,A2,A3,A4,R](fa1: Self[A1], fa2: Self[A2], fa3: Self[A3], fa4: Self[A4])
+    (f: (A1,A2,A3,A4) => R): Self[R] = {
+
+    val fa123 = zip3(fa1, fa2, fa3)
+    zipMap2(fa123, fa4) { case ((a1,a2,a3), a4) => f(a1,a2,a3,a4) }
+  }
+
+  /** Zip five streams together, using the given
+    * mapping function `f` to produce output values.
+    *
+    * The length of the result will be the shorter of the five
+    * arguments.
+    */
+  def zipMap5[A1,A2,A3,A4,A5,R](fa1: Self[A1], fa2: Self[A2], fa3: Self[A3], fa4: Self[A4], fa5: Self[A5])
+    (f: (A1,A2,A3,A4,A5) => R): Self[R] = {
+
+    val fa1234 = zip4(fa1, fa2, fa3, fa4)
+    zipMap2(fa1234, fa5) { case ((a1,a2,a3,a4), a5) => f(a1,a2,a3,a4,a5) }
+  }
+
+  /** Zip six streams together, using the given
+    * mapping function `f` to produce output values.
+    *
+    * The length of the result will be the shorter of the six
+    * arguments.
+    */
+  def zipMap6[A1,A2,A3,A4,A5,A6,R](fa1: Self[A1], fa2: Self[A2], fa3: Self[A3], fa4: Self[A4], fa5: Self[A5], fa6: Self[A6])
+    (f: (A1,A2,A3,A4,A5,A6) => R): Self[R] = {
+
+    val fa12345 = zip5(fa1, fa2, fa3, fa4, fa5)
+    zipMap2(fa12345, fa6) { case ((a1,a2,a3,a4,a5), a6) => f(a1,a2,a3,a4,a5,a6) }
+  }
 
   /** Generates a range between `from` (inclusive) and `until` (exclusive),
     * with `step` as the increment.
