@@ -52,6 +52,47 @@ abstract class StreamLike[+A, F[_], Self[+T] <: StreamLike[T, F, Self]]
     */
   protected def transform[B](f: Enumerator[F,A] => Enumerator[F,B]): Self[B]
 
+  /** Returns a computation that should be evaluated in
+    * case the stream must be canceled before reaching
+    * the end.
+    *
+    * This is useful to release any acquired resources,
+    * like opened file handles or network sockets.
+    */
+  final def cancel: F[Unit] =
+    enumerator.onCancel
+
+  /** Given a computation, make sure to evaluate it if the
+    * stream gets interrupted before reaching the end.
+    *
+    * Note this operation is subsumed in [[doOnFinish]] and the
+    * given computation will only be evaluated if the stream is
+    * interrupted early and not when it is fully complete.
+    */
+  final def doOnCancel(f: F[Unit]): Self[A] =
+    transform(_.doOnCancel(f))
+
+  /** Given a computation, evaluate it upon the stream reaching
+    * the end.
+    *
+    * Note this operation is subsumed in [[doOnFinish]] and the
+    * given computation will only be evaluated if the stream reaches
+    * the end, but not when it is interrupted prematurely (canceled).
+    */
+  final def doOnHalt(f: Option[Throwable] => F[Unit]): Self[A] =
+    transform(_.doOnHalt(f))
+
+  /** Returns a new enumerator in which `f` is scheduled to be run on completion.
+    * This would typically be used to release any resources acquired by this
+    * enumerator.
+    *
+    * Note that both [[doOnCancel]] and [[doOnHalt]] are subsumed under
+    * this operation, the given `f` being evaluated on both reaching the
+    * end or canceling early.
+    */
+  final def doOnFinish(f: Option[Throwable] => F[Unit]): Self[A] =
+    transform(_.doOnFinish(f))
+
   /** Filters the iterator by the given predicate function,
     * returning only those elements that match.
     */
@@ -74,15 +115,15 @@ abstract class StreamLike[+A, F[_], Self[+T] <: StreamLike[T, F, Self]]
     * concatenates the generated async iterables.
     */
   final def flatten[B](implicit ev: A <:< Self[B]): Self[B] =
-    flatMap(x => x)
+    transform(_.flatMap(_.enumerator))
 
   /** Alias for [[flatMap]]. */
   final def concatMap[B](f: A => Self[B]): Self[B] =
-    flatMap(f)
+    transform(_.concatMap(a => f(a).enumerator))
 
-  /** Alias for [[concat]]. */
+  /** Alias for [[flatten]]. */
   final def concat[B](implicit ev: A <:< Self[B]): Self[B] =
-    flatten
+    transform(_.concatMap(_.enumerator))
 
   /** Prepends an element to the stream. */
   final def #::[B >: A](head: B): Self[B] =
@@ -209,6 +250,20 @@ abstract class StreamLike[+A, F[_], Self[+T] <: StreamLike[T, F, Self]]
   final def takeWhile(p: A => Boolean): Self[A] =
     transform(_.takeWhile(p))
 
+  /** Drops the first `n` elements, from left to right. */
+  final def drop(n: Int): Self[A] =
+    transform(_.drop(n))
+
+  /** Returns a new sequence that will drop elements from
+    * the start of the source sequence, for as long as the given
+    * predicate function `p` returns `true`.
+    *
+    * Once the predicate returns false, the rest of the sequence
+    * is streamed from then on.
+    */
+  final def dropWhile(p: A => Boolean): Self[A] =
+    transform(_.dropWhile(p))
+
   /** Recovers from potential errors by mapping them to other
     * streams using the provided function.
     */
@@ -233,15 +288,25 @@ abstract class StreamLike[+A, F[_], Self[+T] <: StreamLike[T, F, Self]]
   final def onErrorRecover[B >: A](pf: PartialFunction[Throwable, B]): Self[B] =
     transform(_.onErrorRecover(pf))
 
-  /** Drops the first `n` elements, from left to right. */
-  final def drop(n: Int): Self[A] =
-    transform(_.drop(n))
-
   /** Triggers memoization of the iterable on the first traversal,
     * such that results will get reused on subsequent traversals.
     */
   final def memoize: Self[A] =
     transform(_.memoize)
+
+  /** Compact removes "pauses" in the stream
+    * (represented as `NodeSeq(Nil,_,_)` nodes).
+    *
+    * Normally such values are used to defer tail computation in
+    * cases where it is convenient to return a stream value where
+    * neither the head or tail are computed yet. Or because the
+    * values in the tail sequence have been filtered out.
+    *
+    * In some cases (particularly if the stream is to be memoized) it
+    * may be desirable to ensure that these values are not retained.
+    */
+  final def compact: Self[A] =
+    transform(_.compact)
 
   /** Creates a new iterator that will consume the
     * source iterator and upon completion of the source it will
@@ -313,18 +378,24 @@ abstract class StreamLikeBuilders[F[_], Self[+T] <: StreamLike[T, F, Self]]
     *
     * @param head is the current element to be signaled
     * @param tail is the rest of the stream
+    * @param cancel is a computation to be executed in case
+    *        streaming is stopped prematurely, giving it a chance
+    *        to do resource cleanup (e.g. close file handles)
     */
-  def cons[A](head: A, tail: F[Self[A]]): Self[A] =
-    fromEnumerator(Enumerator.cons[F,A](head, F.map(tail)(_.enumerator)))
+  def cons[A](head: A, tail: F[Self[A]], cancel: F[Unit]): Self[A] =
+    fromEnumerator(Enumerator.cons[F,A](head, F.map(tail)(_.enumerator), cancel))
 
   /** Returns a stream representing a cons pair between a
     * strict `headSeq` sequence and a possibly lazy `tail`.
     *
     * @param headSeq is the current sequence of the elements to signaled
     * @param tail is the rest of the stream
+    * @param cancel is a computation to be executed in case
+    *        streaming is stopped prematurely, giving it a chance
+    *        to do resource cleanup (e.g. close file handles)
     */
-  def consSeq[A](headSeq: LinearSeq[A], tail: F[Self[A]]): Self[A] =
-    fromEnumerator(Enumerator.consSeq[F,A](headSeq, F.map(tail)(_.enumerator)))
+  def consSeq[A](headSeq: LinearSeq[A], tail: F[Self[A]], cancel: F[Unit]): Self[A] =
+    fromEnumerator(Enumerator.consSeq[F,A](headSeq, F.map(tail)(_.enumerator), cancel))
 
   /** Returns an empty stream that can optionally signal
     * an end error.
@@ -334,6 +405,18 @@ abstract class StreamLikeBuilders[F[_], Self[+T] <: StreamLike[T, F, Self]]
     */
   def halt[A](ex: Option[Throwable]): Self[A] =
     fromEnumerator(Halt(ex))
+
+  /** Builder for a suspended state.
+    *
+    * It returns a [[consSeq]] state with an empty list, which
+    * means that no element is available to be signaled presently,
+    * but the run-loop can advance to the next state.
+    *
+    * @param rest is the reference to the next state in the sequence
+    * @param cancel $cancelDesc
+    */
+  def suspend[A](rest: F[Self[A]], cancel: F[Unit]): Self[A] =
+    consSeq[A](Nil, rest, cancel)
 
   /** Zips two streams together.
     *

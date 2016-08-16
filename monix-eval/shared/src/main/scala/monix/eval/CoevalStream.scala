@@ -68,10 +68,10 @@ final case class CoevalStream[+A](enumerator: Enumerator[Coeval,A])
     var cursor = self.enumerator
 
     while (cursor != null) cursor match {
-      case Cons(head, tail) =>
+      case NextEl(head, tail, _) =>
         buffer += head
         cursor = tail.value
-      case ConsSeq(seq, tail) =>
+      case NextSeq(seq, tail, _) =>
         buffer ++= seq
         cursor = tail.value
       case Halt(exOpt) =>
@@ -131,10 +131,10 @@ final case class CoevalStream[+A](enumerator: Enumerator[Coeval,A])
 
         private def advance(): Unit =
           if (queue.isEmpty) cursor match {
-            case Cons(head, tail) =>
+            case NextEl(head, tail, _) =>
               queue.enqueue(head)
               cursor = tail.value
-            case ConsSeq(seq, tail) =>
+            case NextSeq(seq, tail, _) =>
               queue.enqueue(seq:_*)
               cursor = tail.value
             case Halt(exOpt) =>
@@ -157,10 +157,10 @@ final case class CoevalStream[+A](enumerator: Enumerator[Coeval,A])
   def toTaskStream: TaskStream[A] = {
     def convert(stream: Enumerator[Coeval,A]): Enumerator[Task,A] =
       stream match {
-        case Cons(elem, rest) =>
-          Cons(elem, rest.task.map(convert))
-        case ConsSeq(elems, rest) =>
-          ConsSeq(elems, rest.task.map(convert))
+        case NextEl(elem, rest, cancel) =>
+          NextEl(elem, rest.task.map(convert), cancel.task)
+        case NextSeq(elems, rest, cancel) =>
+          NextSeq(elems, rest.task.map(convert), cancel.task)
         case empty @ Halt(ex) =>
           Halt[Task](ex)
       }

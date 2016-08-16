@@ -39,18 +39,36 @@ object TaskStreamSuite extends BaseTestSuite {
 
   test("TaskStream.filter should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
-    val f = TaskStream.now(1).filter(_ => throw ex).firstL.runAsync
+    var cancelWasTriggered = false
+    var endWasReached = false
+
+    val f = TaskStream.now(1)
+      .doOnCancel(Task.evalAlways { cancelWasTriggered = true })
+      .doOnHalt(_ => Task.evalAlways { endWasReached = true })
+      .filter(_ => throw ex)
+      .firstL.runAsync
+
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+    assert(cancelWasTriggered, "cancelWasTriggered")
+    assert(!endWasReached, "!endWasReached")
   }
 
   test("TaskStream.filter(batched) should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
-    val f = TaskStream.consSeq(List(1), Task.now(TaskStream.empty))
-      .filter(_ => throw ex).firstL.runAsync
+    var cancelWasTriggered = false
+    var endWasReached = false
+
+    val f = TaskStream.consSeq(List(1), Task.now(TaskStream.empty), Task.unit)
+      .doOnCancel(Task.evalAlways { cancelWasTriggered = true })
+      .doOnHalt(_ => Task.evalAlways { endWasReached = true })
+      .filter(_ => throw ex)
+      .firstL.runAsync
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+    assert(cancelWasTriggered, "cancelWasTriggered")
+    assert(!endWasReached, "!endWasReached")
   }
 
   test("TaskStream.map") { implicit s =>
@@ -71,18 +89,36 @@ object TaskStreamSuite extends BaseTestSuite {
 
   test("TaskStream.map should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
-    val f = TaskStream.now(1).map(_ => throw ex).firstL.runAsync
+    var cancelWasTriggered = false
+    var endWasReached = false
+
+    val f = TaskStream.now(1)
+      .doOnCancel(Task.evalAlways { cancelWasTriggered = true })
+      .doOnHalt(_ => Task.evalAlways { endWasReached = true })
+      .map(_ => throw ex)
+      .firstL.runAsync
+
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+    assert(cancelWasTriggered, "cancelWasTriggered")
+    assert(!endWasReached, "!endWasReached")
   }
 
   test("TaskStream.map(batched) should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
-    val f = TaskStream.consSeq(List(1), Task.now(TaskStream.empty))
-      .map(_ => throw ex).firstL.runAsync
+    var cancelWasTriggered = false
+    var endWasReached = false
+
+    val f = TaskStream.consSeq(List(1), Task.now(TaskStream.empty), Task.unit)
+      .doOnCancel(Task.evalAlways { cancelWasTriggered = true })
+      .doOnHalt(_ => Task.evalAlways { endWasReached = true })
+      .map(_ => throw ex)
+      .firstL.runAsync
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+    assert(cancelWasTriggered, "cancelWasTriggered")
+    assert(!endWasReached, "!endWasReached")
   }
 
   test("TaskStream.flatMap") { implicit s =>
@@ -103,18 +139,36 @@ object TaskStreamSuite extends BaseTestSuite {
 
   test("TaskStream.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
-    val f = TaskStream.now(1).flatMap(_ => throw ex).firstL.runAsync
+    var cancelWasTriggered = false
+    var endWasReached = false
+
+    val f = TaskStream.now(1)
+      .doOnCancel(Task.evalAlways { cancelWasTriggered = true })
+      .doOnHalt(_ => Task.evalAlways { endWasReached = true })
+      .flatMap(_ => throw ex)
+      .firstL.runAsync
+
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+    assert(cancelWasTriggered, "cancelWasTriggered")
+    assert(!endWasReached, "!endWasReached")
   }
 
   test("TaskStream.flatMap(batched) should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
-    val f = TaskStream.consSeq(List(1), Task.now(TaskStream.empty))
-      .flatMap(_ => throw ex).firstL.runAsync
+    var cancelWasTriggered = false
+    var endWasReached = false
+
+    val f = TaskStream.consSeq(List(1), Task.now(TaskStream.empty), Task.unit)
+      .doOnCancel(Task.evalAlways { cancelWasTriggered = true })
+      .doOnHalt(_ => Task.evalAlways { endWasReached = true })
+      .flatMap(_ => throw ex)
+      .firstL.runAsync
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+    assert(cancelWasTriggered, "cancelWasTriggered")
+    assert(!endWasReached, "!endWasReached")
   }
 
   test("TaskStream.flatten == flatMap(x => x)") { implicit s =>
@@ -167,25 +221,53 @@ object TaskStreamSuite extends BaseTestSuite {
 
   test("TaskStream.foldLeftL should protect against user code, test 1") { implicit s =>
     val ex = DummyException("dummy")
-    val f = TaskStream.now(1).foldLeftL(0)((a,e) => throw ex).runAsync
+    var cancelWasTriggered = false
+    var endWasReached = false
+
+    val f = TaskStream.now(1)
+      .doOnCancel(Task.evalAlways { cancelWasTriggered = true })
+      .doOnHalt(_ => Task.evalAlways { endWasReached = true })
+      .foldLeftL(0)((a,e) => throw ex)
+      .runAsync
+
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+    assert(cancelWasTriggered, "cancelWasTriggered")
+    assert(!endWasReached, "!endWasReached")
   }
 
   test("TaskStream.foldLeftL should protect against user code, test 2") { implicit s =>
     val ex = DummyException("dummy")
-    val f = TaskStream.now(1).foldLeftL((throw ex) : Int)(_ + _).runAsync
+    var cancelWasTriggered = false
+    var endWasReached = false
+
+    val f = TaskStream.now(1)
+      .doOnCancel(Task.evalAlways { cancelWasTriggered = true })
+      .doOnHalt(_ => Task.evalAlways { endWasReached = true })
+      .foldLeftL((throw ex) : Int)(_ + _)
+      .runAsync
+
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+    assert(cancelWasTriggered, "cancelWasTriggered")
+    assert(!endWasReached, "!endWasReached")
   }
 
   test("TaskStream.foldLeftL(batched) should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
-    val f = TaskStream.consSeq(List(1), Task.now(TaskStream.empty))
-      .foldLeftL(0)((a,e) => throw ex).runAsync
+    var cancelWasTriggered = false
+    var endWasReached = false
+
+    val f = TaskStream.consSeq(List(1), Task.now(TaskStream.empty), Task.unit)
+      .doOnCancel(Task.evalAlways { cancelWasTriggered = true })
+      .doOnHalt(_ => Task.evalAlways { endWasReached = true })
+      .foldLeftL(0)((a,e) => throw ex)
+      .runAsync
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+    assert(cancelWasTriggered, "cancelWasTriggered")
+    assert(!endWasReached, "!endWasReached")
   }
 
   test("TaskStream.foldWhileL") { implicit s =>
@@ -206,26 +288,54 @@ object TaskStreamSuite extends BaseTestSuite {
 
   test("TaskStream.foldWhileL should protect against user code, test 1") { implicit s =>
     val ex = DummyException("dummy")
-    val f = TaskStream.now(1).foldWhileL(0)((a,e) => throw ex).runAsync
+    var cancelWasTriggered = false
+    var endWasReached = false
+
+    val f = TaskStream.now(1)
+      .doOnCancel(Task.evalAlways { cancelWasTriggered = true })
+      .doOnHalt(_ => Task.evalAlways { endWasReached = true })
+      .foldWhileL(0)((a,e) => throw ex)
+      .runAsync
+
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+    assert(cancelWasTriggered, "cancelWasTriggered")
+    assert(!endWasReached, "!endWasReached")
   }
 
   test("TaskStream.foldWhileL should protect against user code, test 2") { implicit s =>
     val ex = DummyException("dummy")
-    val f = TaskStream.now(1).foldWhileL((throw ex) : Int)((_,_) => (true,0)).runAsync
+    var cancelWasTriggered = false
+    var endWasReached = false
+
+    val f = TaskStream.now(1)
+      .doOnCancel(Task.evalAlways { cancelWasTriggered = true })
+      .doOnHalt(_ => Task.evalAlways { endWasReached = true })
+      .foldWhileL((throw ex) : Int)((_,_) => (true,0))
+      .runAsync
+
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+    assert(cancelWasTriggered, "cancelWasTriggered")
+    assert(!endWasReached, "!endWasReached")
   }
 
   test("TaskStream.foldWhileL(batched) should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
+    var cancelWasTriggered = false
+    var endWasReached = false
+
     val f = TaskStream
-      .consSeq(List(1), Task.now(TaskStream.empty))
-      .foldWhileL(0)((a,e) => throw ex).runAsync
+      .consSeq(List(1), Task.now(TaskStream.empty), Task.unit)
+      .doOnCancel(Task.evalAlways { cancelWasTriggered = true })
+      .doOnHalt(_ => Task.evalAlways { endWasReached = true })
+      .foldWhileL(0)((a,e) => throw ex)
+      .runAsync
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+    assert(cancelWasTriggered, "cancelWasTriggered")
+    assert(!endWasReached, "!endWasReached")
   }
 
   test("TaskStream.foldRightL") { implicit s =>
@@ -250,22 +360,77 @@ object TaskStreamSuite extends BaseTestSuite {
     }
   }
 
-  test("TaskStream.foldRightL shoudl protect against user code") { implicit s =>
+  test("TaskStream.foldRightL should protect against user code - when given function throws") { implicit s =>
     val ex = DummyException("dummy")
-    val f = TaskStream.now(1).foldRightL(Task.now(true))((_,_) => throw ex).runAsync
+    var cancelWasTriggered = false
+    var endWasReached = false
+
+    val f = TaskStream.now(1)
+      .doOnCancel(Task.evalAlways { cancelWasTriggered = true })
+      .doOnHalt(_ => Task.evalAlways { endWasReached = true })
+      .foldRightL(Task.now(true))((_,_) => throw ex)
+      .runAsync
+
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+    assert(cancelWasTriggered, "cancelWasTriggered")
+    assert(!endWasReached, "!endWasReached")
   }
 
-  test("TaskStream.foldRightL(batched) shoudl protect against user code") { implicit s =>
+  test("TaskStream.foldRightL should protect against user code - when given function returns error") { implicit s =>
     val ex = DummyException("dummy")
+    var cancelWasTriggered = false
+    var endWasReached = false
+
+    val f = TaskStream.now(1)
+      .doOnCancel(Task.evalAlways { cancelWasTriggered = true })
+      .doOnHalt(_ => Task.evalAlways { endWasReached = true })
+      .foldRightL(Task.now(true))((_,_) => Task.raiseError(ex))
+      .runAsync
+
+    s.tick()
+    assertEquals(f.value, Some(Failure(ex)))
+    assert(cancelWasTriggered, "cancelWasTriggered")
+    assert(!endWasReached, "!endWasReached")
+  }
+
+
+  test("TaskStream.foldRightL(batched) should protect against user code - when given function throws") { implicit s =>
+    val ex = DummyException("dummy")
+    var cancelWasTriggered = false
+    var endWasReached = false
+
     val f = TaskStream
-      .consSeq(List(1), Task.now(TaskStream.empty))
-      .foldRightL(Task.now(true))((_,_) => throw ex).runAsync
+      .consSeq(List(1), Task.now(TaskStream.empty), Task.unit)
+      .doOnCancel(Task.evalAlways { cancelWasTriggered = true })
+      .doOnHalt(_ => Task.evalAlways { endWasReached = true })
+      .foldRightL(Task.now(true))((_,_) => throw ex)
+      .runAsync
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+    assert(cancelWasTriggered, "cancelWasTriggered")
+    assert(!endWasReached, "!endWasReached")
   }
+
+  test("TaskStream.foldRightL(batched) should protect against user code - when given function returns error") { implicit s =>
+    val ex = DummyException("dummy")
+    var cancelWasTriggered = false
+    var endWasReached = false
+
+    val f = TaskStream
+      .consSeq(List(1), Task.now(TaskStream.empty), Task.unit)
+      .doOnCancel(Task.evalAlways { cancelWasTriggered = true })
+      .doOnHalt(_ => Task.evalAlways { endWasReached = true })
+      .foldRightL(Task.now(true))((_,_) => Task.raiseError(ex))
+      .runAsync
+
+    s.tick()
+    assertEquals(f.value, Some(Failure(ex)))
+    assert(cancelWasTriggered, "cancelWasTriggered")
+    assert(!endWasReached, "!endWasReached")
+  }
+
 
   test("TaskStream.fromList ++ TaskStream.fromList") { implicit s =>
     check2 { (seq1: List[Int], seq2: List[Int]) =>
@@ -466,6 +631,38 @@ object TaskStreamSuite extends BaseTestSuite {
     }
   }
 
+  test("TaskStream.take should cancel when done") { implicit s =>
+    var wasCanceled = false
+    var wasFinished = false
+    val result = TaskStream.fromList(List(1,2,3,4,5,6))
+      .doOnCancel(Task.evalAlways { wasCanceled = true })
+      .doOnHalt(_ => Task.evalAlways { wasFinished = true })
+      .take(4)
+      .toListL
+      .runAsync
+
+    s.tick()
+    assertEquals(result.value, Some(Success(List(1,2,3,4))))
+    assert(wasCanceled, "wasCanceled")
+    assert(!wasFinished, "!wasFinished")
+  }
+
+  test("TaskStream.take(batched) should cancel when done") { implicit s =>
+    var wasCanceled = false
+    var wasFinished = false
+    val result = TaskStream.fromList(List(1,2,3,4,5,6), 2)
+      .doOnCancel(Task.evalAlways { wasCanceled = true })
+      .doOnHalt(_ => Task.evalAlways { wasFinished = true })
+      .take(4)
+      .toListL
+      .runAsync
+
+    s.tick()
+    assertEquals(result.value, Some(Success(List(1,2,3,4))))
+    assert(wasCanceled, "wasCanceled")
+    assert(!wasFinished, "!wasFinished")
+  }
+
   test("TaskStream.takeWhile") { implicit s =>
     check1 { (numbers: List[Int]) =>
       val stream = TaskStream.fromList(numbers)
@@ -478,6 +675,138 @@ object TaskStreamSuite extends BaseTestSuite {
       val stream = TaskStream.fromList(numbers,4)
       stream.takeWhile(_ >= 0).toListL === Task.now(numbers.takeWhile(_ >= 0))
     }
+  }
+
+  test("TaskStream.takeWhile should protect against user code") { implicit s =>
+    val ex = DummyException("dummy")
+    var wasCanceled = false
+    var wasFinished = false
+
+    val result = TaskStream.fromList(List(1,2,3,4,5,6))
+      .doOnCancel(Task.evalAlways { wasCanceled = true })
+      .doOnHalt(_ => Task.evalAlways { wasFinished = true })
+      .takeWhile(_ => throw ex)
+      .toListL
+      .runAsync
+
+    s.tick()
+    assertEquals(result.value, Some(Failure(ex)))
+    assert(wasCanceled, "wasCanceled")
+    assert(!wasFinished, "!wasFinished")
+  }
+
+  test("TaskStream.takeWhile should cancel when done") { implicit s =>
+    var wasCanceled = false
+    var wasFinished = false
+    val result = TaskStream.fromList(List(1,2,3,4,5,6))
+      .doOnCancel(Task.evalAlways { wasCanceled = true })
+      .doOnHalt(_ => Task.evalAlways { wasFinished = true })
+      .takeWhile(_ <= 4)
+      .toListL
+      .runAsync
+
+    s.tick()
+    assertEquals(result.value, Some(Success(List(1,2,3,4))))
+    assert(wasCanceled, "wasCanceled")
+    assert(!wasFinished, "!wasFinished")
+  }
+
+  test("TaskStream.takeWhile(batched) should protect against user code") { implicit s =>
+    val ex = DummyException("dummy")
+    var wasCanceled = false
+    var wasFinished = false
+
+    val result = TaskStream.fromList(List(1,2,3,4,5,6), 2)
+      .doOnCancel(Task.evalAlways { wasCanceled = true })
+      .doOnHalt(_ => Task.evalAlways { wasFinished = true })
+      .takeWhile(_ => throw ex)
+      .toListL
+      .runAsync
+
+    s.tick()
+    assertEquals(result.value, Some(Failure(ex)))
+    assert(wasCanceled, "wasCanceled")
+    assert(!wasFinished, "!wasFinished")
+  }
+
+  test("TaskStream.takeWhile(batched) should cancel when done") { implicit s =>
+    var wasCanceled = false
+    var wasFinished = false
+    val result = TaskStream.fromList(List(1,2,3,4,5,6), 2)
+      .doOnCancel(Task.evalAlways { wasCanceled = true })
+      .doOnHalt(_ => Task.evalAlways { wasFinished = true })
+      .takeWhile(_ <= 4)
+      .toListL
+      .runAsync
+
+    s.tick()
+    assertEquals(result.value, Some(Success(List(1,2,3,4))))
+    assert(wasCanceled, "wasCanceled")
+    assert(!wasFinished, "!wasFinished")
+  }
+
+  test("TaskStream.drop") { implicit s =>
+    check1 { (numbers: List[Int]) =>
+      val stream = TaskStream.fromList(numbers)
+      stream.drop(5).toListL === Task.now(numbers.drop(5))
+    }
+  }
+
+  test("TaskStream.drop(batched)") { implicit s =>
+    check1 { (numbers: List[Int]) =>
+      val stream = TaskStream.fromList(numbers,4)
+      stream.drop(5).toListL === Task.now(numbers.drop(5))
+    }
+  }
+
+  test("TaskStream.dropWhile") { implicit s =>
+    check1 { (numbers: List[Int]) =>
+      val stream = TaskStream.fromList(numbers)
+      stream.dropWhile(_ % 2 == 0).toListL === Task.now(numbers.dropWhile(_ % 2 == 0))
+    }
+  }
+
+  test("TaskStream.dropWhile(batched)") { implicit s =>
+    check1 { (numbers: List[Int]) =>
+      val stream = TaskStream.fromList(numbers,4)
+      stream.dropWhile(_ % 2 == 0).toListL === Task.now(numbers.dropWhile(_ % 2 == 0))
+    }
+  }
+
+  test("TaskStream.dropWhile should protect against user code") { implicit s =>
+    val ex = DummyException("dummy")
+    var wasCanceled = false
+    var wasFinished = false
+
+    val result = TaskStream.fromList(List(1,2,3,4,5,6))
+      .doOnCancel(Task.evalAlways { wasCanceled = true })
+      .doOnHalt(_ => Task.evalAlways { wasFinished = true })
+      .dropWhile(_ => throw ex)
+      .toListL
+      .runAsync
+
+    s.tick()
+    assertEquals(result.value, Some(Failure(ex)))
+    assert(wasCanceled, "wasCanceled")
+    assert(!wasFinished, "!wasFinished")
+  }
+
+  test("TaskStream.dropWhile(batched) should protect against user code") { implicit s =>
+    val ex = DummyException("dummy")
+    var wasCanceled = false
+    var wasFinished = false
+
+    val result = TaskStream.fromList(List(1,2,3,4,5,6),2)
+      .doOnCancel(Task.evalAlways { wasCanceled = true })
+      .doOnHalt(_ => Task.evalAlways { wasFinished = true })
+      .dropWhile(_ => throw ex)
+      .toListL
+      .runAsync
+
+    s.tick()
+    assertEquals(result.value, Some(Failure(ex)))
+    assert(wasCanceled, "wasCanceled")
+    assert(!wasFinished, "!wasFinished")
   }
 
   test("TaskStream.memoize") { implicit s =>
@@ -520,7 +849,7 @@ object TaskStreamSuite extends BaseTestSuite {
 
   test("TaskStream.onErrorHandleWith recovers from F errors") { implicit s =>
     val ex = DummyException("dummy")
-    val stream = (1 #:: 2 #:: TaskStream.cons(3, Task.raiseError(ex)))
+    val stream = (1 #:: 2 #:: TaskStream.cons(3, Task.raiseError(ex), Task.unit))
       .onErrorHandleWith { case `ex` => TaskStream(4,5) }
 
     val f = stream.toListL.runAsync; s.tick()
@@ -597,20 +926,6 @@ object TaskStreamSuite extends BaseTestSuite {
     }
   }
 
-  test("TaskStream.drop") { implicit s =>
-    check1 { (numbers: List[Int]) =>
-      val stream = TaskStream.fromList(numbers)
-      stream.drop(5).toListL === Task.now(numbers.drop(5))
-    }
-  }
-
-  test("TaskStream.drop(batched)") { implicit s =>
-    check1 { (numbers: List[Int]) =>
-      val stream = TaskStream.fromList(numbers,4)
-      stream.drop(5).toListL === Task.now(numbers.drop(5))
-    }
-  }
-
   test("TaskStream.completedL") { implicit s =>
     check1 { (numbers: List[Int]) =>
       val stream = TaskStream.fromList(numbers)
@@ -649,9 +964,18 @@ object TaskStreamSuite extends BaseTestSuite {
 
   test("TaskStream.foreachL should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
-    val f = TaskStream.now(1).foreach(_ => throw ex)
+    var cancelWasTriggered = false
+    var endWasReached = false
+
+    val f = TaskStream.now(1)
+      .doOnCancel(Task.evalAlways { cancelWasTriggered = true })
+      .doOnHalt(_ => Task.evalAlways { endWasReached = true })
+      .foreach(_ => throw ex)
+
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+    assert(cancelWasTriggered, "cancelWasTriggered")
+    assert(!endWasReached, "!endWasReached")
   }
 
   test("TaskStream.foreach") { implicit s =>
@@ -771,37 +1095,88 @@ object TaskStreamSuite extends BaseTestSuite {
   test("TaskStream.zipMap2 should protect against user code") { implicit s =>
     import TaskStream._
     val ex = DummyException("dummy")
-    val f = zipMap2[Int,Int,Int](apply(1,2), apply(3,4))((a,b) => throw ex)
+
+    var stream1Ended = false
+    var stream1Canceled = false
+    val stream1 = apply(1,2)
+      .doOnCancel(Task.evalAlways { stream1Canceled = true })
+      .doOnHalt(_ => Task.evalAlways { stream1Ended = true })
+
+    var stream2Ended = false
+    var stream2Canceled = false
+    val stream2 = apply(3,4)
+      .doOnCancel(Task.evalAlways { stream2Canceled = true })
+      .doOnHalt(_ => Task.evalAlways { stream2Ended = true })
+
+    val f = zipMap2[Int,Int,Int](stream1, stream2)((a,b) => throw ex)
       .toListL.runAsync
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+    assert(stream1Canceled, "stream1Canceled")
+    assert(!stream1Ended, "!stream1Ended")
+    assert(stream2Canceled, "stream2Canceled")
+    assert(!stream2Ended, "!stream2Ended")
   }
 
   test("TaskStream.zip2 ends in error if left ends in error") { implicit s =>
     import TaskStream._
     val ex = DummyException("dummy")
-    val f = zip2[Int,Int,Int](apply(1,2) ++ raiseError(ex), apply(3,4))
+
+    var stream1Ended = false
+    var stream1Canceled = false
+    val stream1 = apply(1,2)
+      .doOnCancel(Task.evalAlways { stream1Canceled = true })
+      .doOnHalt(_ => Task.evalAlways { stream1Ended = true })
+
+    var stream2Ended = false
+    var stream2Canceled = false
+    val stream2 = apply(3,4,5)
+      .doOnCancel(Task.evalAlways { stream2Canceled = true })
+      .doOnHalt(_ => Task.evalAlways { stream2Ended = true })
+
+    val f = zip2[Int,Int,Int](stream1 ++ raiseError(ex), stream2)
       .toListL.runAsync
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+    assert(!stream1Canceled, "!stream1Canceled")
+    assert(stream1Ended, "stream1Ended")
+    assert(stream2Canceled, "stream2Canceled")
+    assert(!stream2Ended, "!stream2Ended")
   }
 
   test("TaskStream.zip2 ends in error if right ends in error") { implicit s =>
     import TaskStream._
     val ex = DummyException("dummy")
-    val f = zip2[Int,Int,Int](apply(1,2,3), apply(3,4) ++ raiseError(ex))
+
+    var stream1Ended = false
+    var stream1Canceled = false
+    val stream1 = apply(1,2,3)
+      .doOnCancel(Task.evalAlways { stream1Canceled = true })
+      .doOnHalt(_ => Task.evalAlways { stream1Ended = true })
+
+    var stream2Ended = false
+    var stream2Canceled = false
+    val stream2 = apply(3,4)
+      .doOnCancel(Task.evalAlways { stream2Canceled = true })
+      .doOnHalt(_ => Task.evalAlways { stream2Ended = true })
+
+    val f = zip2[Int,Int,Int](stream1, stream2 ++ raiseError(ex))
       .toListL.runAsync
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+    assert(stream1Canceled, "stream1Canceled")
+    assert(!stream1Ended, "!stream1Ended")
+    assert(!stream2Canceled, "!stream2Canceled")
+    assert(stream2Ended, "stream2Ended")
   }
 
   test("TaskStream.zip3") { implicit s =>
     import TaskStream._
     check2 { (nums1: List[Int], nums2: List[Int]) =>
-      val stream = zip3(fromList(nums1,32), fromList(nums2,32), fromList(nums1,32)).toListL
+      val stream = zip3(fromList(nums1,4), fromList(nums2,4), fromList(nums1,4)).toListL
       val expected = Task.now(nums1.zip(nums2).zip(nums1).map { case ((a,b), c) => (a,b,c) })
       stream === expected
     }
@@ -810,7 +1185,7 @@ object TaskStreamSuite extends BaseTestSuite {
   test("TaskStream.zip4") { implicit s =>
     import TaskStream._
     check2 { (nums1: List[Int], nums2: List[Int]) =>
-      val stream = zip4(fromList(nums1,32), fromList(nums2,32), fromList(nums1,32), fromList(nums2,32)).toListL
+      val stream = zip4(fromList(nums1,4), fromList(nums2,4), fromList(nums1,4), fromList(nums2,4)).toListL
       val expected = Task.now(nums1.zip(nums2).zip(nums1).zip(nums2).map { case (((a,b), c), d) => (a,b,c,d) })
       stream === expected
     }
@@ -819,7 +1194,7 @@ object TaskStreamSuite extends BaseTestSuite {
   test("TaskStream.zip5") { implicit s =>
     import TaskStream._
     check2 { (nums1: List[Int], nums2: List[Int]) =>
-      val stream = zip5(fromList(nums1,32), fromList(nums2,32), fromList(nums1,32), fromList(nums2,32), fromList(nums1,32)).toListL
+      val stream = zip5(fromList(nums1,4), fromList(nums2,4), fromList(nums1,4), fromList(nums2,4), fromList(nums1,4)).toListL
       val expected = Task.now(nums1.zip(nums2).zip(nums1).zip(nums2).zip(nums1).map { case ((((a,b), c), d), e) => (a,b,c,d,e) })
       stream === expected
     }
@@ -828,9 +1203,53 @@ object TaskStreamSuite extends BaseTestSuite {
   test("TaskStream.zip6") { implicit s =>
     import TaskStream._
     check2 { (nums1: List[Int], nums2: List[Int]) =>
-      val stream = zip6(fromList(nums1,32), fromList(nums2,32), fromList(nums1,32), fromList(nums2,32), fromList(nums1,32), fromList(nums2, 32)).toListL
+      val stream = zip6(fromList(nums1,4), fromList(nums2,4), fromList(nums1,4), fromList(nums2,4), fromList(nums1,4), fromList(nums2, 4)).toListL
       val expected = Task.now(nums1.zip(nums2).zip(nums1).zip(nums2).zip(nums1).zip(nums2).map { case (((((a,b), c), d), e), f) => (a,b,c,d,e,f) })
       stream === expected
     }
+  }
+
+  test("TaskStream.doOnFinish should work for completed streams") { implicit s =>
+    import TaskStream._
+    var finished = 0
+    val result = fromList(List(1,2,3,4,5))
+      .doOnFinish(_ => Task.evalAlways { finished += 1 })
+      .sumL
+      .runAsync
+
+    s.tick()
+    assertEquals(result.value, Some(Success(15)))
+    assertEquals(finished, 1)
+  }
+
+  test("TaskStream.doOnFinish should work for streams ending in error") { implicit s =>
+    import TaskStream._
+    val ex = DummyException("dummy")
+    var finished = 0
+
+    val result = fromList(List(1,2,3,4,5))
+      .map[Int](_ => throw DummyException("dummy"))
+      .doOnFinish(ex => Task.evalAlways { finished += (if (ex.isEmpty) 1 else 10) })
+      .sumL
+      .runAsync
+
+    s.tick()
+    assertEquals(result.value, Some(Failure(ex)))
+    assertEquals(finished, 1)
+  }
+
+  test("TaskStream.doOnFinish should work for canceled streams") { implicit s =>
+    import TaskStream._
+    var finished = 0
+
+    val result = fromList(List(1,2,3,4,5))
+      .doOnFinish(ex => Task.evalAlways { finished += (if (ex.isEmpty) 1 else 10) })
+      .take(3)
+      .sumL
+      .runAsync
+
+    s.tick()
+    assertEquals(result.value, Some(Success(6)))
+    assertEquals(finished, 1)
   }
 }
