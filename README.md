@@ -4,12 +4,12 @@
 
 Asynchronous Programming for Scala and [Scala.js](http://www.scala-js.org/).
 
-[![Build Status](https://travis-ci.org/monixio/monix.svg?branch=master)](https://travis-ci.org/monixio/monix)
-[![Coverage Status](http://codecov.io/github/monixio/monix/coverage.svg?branch=master)](http://codecov.io/github/monixio/monix?branch=master)
+[![Build Status](https://travis-ci.org/monix/monix.svg?branch=series/2.0.x)](https://travis-ci.org/monix/monix)
+[![Coverage Status](http://codecov.io/github/monix/monix/coverage.svg?branch=master)](http://codecov.io/github/monix/monix?branch=master)
 [![Scala.js](http://scala-js.org/assets/badges/scalajs-0.6.8.svg)](http://scala-js.org)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.monix/monix_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.monix/monix_2.11)
 
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monixio/monix?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monix/monix?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ## Overview
 
@@ -36,7 +36,7 @@ Highlights:
 
 ## Usage
 
-See **[monix-sample](https://github.com/monixio/monix-sample)** for
+See **[monix-sample](https://github.com/monix/monix-sample)** for
 a project exemplifying Monix used both on the server and on the client.
 
 ### Dependencies
@@ -83,7 +83,7 @@ Optional packages:
 
 NOTE: The documentation is a work in progress.  All documentation is
 hosted at,
-[contributions are welcome](https://github.com/monixio/monix.io):
+[contributions are welcome](https://github.com/monix/monix.io):
 
 - [Monix.io](https://monix.io/)
 
@@ -127,13 +127,13 @@ Version 2.0.  See [LICENCE.txt](./LICENSE.txt).
 
 ## Acknowledgements
 
-<img src="https://raw.githubusercontent.com/wiki/monixio/monix/assets/yklogo.png" align="right" />
+<img src="https://raw.githubusercontent.com/wiki/monix/monix/assets/yklogo.png" align="right" />
 YourKit supports the Monix project with its full-featured Java Profiler.
 YourKit, LLC is the creator [YourKit Java Profiler](http://www.yourkit.com/java/profiler/index.jsp)
 and [YourKit .NET Profiler](http://www.yourkit.com/.net/profiler/index.jsp),
 innovative and intelligent tools for profiling Java and .NET applications.
 
-<img src="https://raw.githubusercontent.com/wiki/monixio/monix/assets/logo-eloquentix@2x.png" align="right" width="130" />
+<img src="https://raw.githubusercontent.com/wiki/monix/monix/assets/logo-eloquentix@2x.png" align="right" width="130" />
 
 Development of Monix has been initiated by [Eloquentix](http://eloquentix.com/)
 engineers, with Monix being introduced at E.ON Connecting Energies,
