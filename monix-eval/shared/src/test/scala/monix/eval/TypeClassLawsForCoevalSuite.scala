@@ -17,25 +17,24 @@
 
 package monix.eval
 
-import monix.types.tests._
+import cats.Eq
+import cats.kernel.laws.GroupLaws
+import cats.laws.discipline.{ComonadTests, MonadErrorTests}
+import org.scalacheck.Arbitrary
 
 object TypeClassLawsForCoevalSuite extends BaseLawsSuite
-  with MemoizableLawsSuite[Coeval,Int,Long,Short]
-  with SuspendableLawsSuite[Coeval,Int,Long,Short]
-  with MonadErrorLawsSuite[Coeval,Int,Long,Short,Throwable]
-  with CobindLawsSuite[Coeval,Int,Long,Short]
-  with MonadRecLawsSuite[Coeval,Int,Long,Short]
-  with ComonadLawsSuite[Coeval,Int,Long,Short] {
+  with GroupLaws[Coeval[Int]] {
 
-  override def F: Coeval.TypeClassInstances =
-    Coeval.typeClassInstances
+  // for GroupLaws
+  override def Equ: Eq[Coeval[Int]] = equalityCoeval[Int]
+  override def Arb: Arbitrary[Coeval[Int]] = arbitraryCoeval[Int]
 
   // Actual tests ...
 
-  monadEvalErrorCheck("Coeval")
-  memoizableCheck("Coeval", includeSupertypes = true)
-  monadErrorCheck("Coeval", includeSupertypes = false)
-  monadRecCheck("Coeval", includeSupertypes = false)
-  cobindCheck("Coeval", includeSupertypes = false)
-  comonadCheck("Coeval", includeSupertypes = false)
+  checkAll("Group[Coeval[Int]]", GroupLaws[Coeval[Int]].group)
+  checkAll("Monoid[Coeval[Int]]", GroupLaws[Coeval[Int]].monoid)
+  checkAll("Semigroup[Coeval[Int]]", GroupLaws[Coeval[Int]].semigroup)
+
+  checkAll("MonadError[Coeval[Int]]", MonadErrorTests[Coeval, Throwable].monadError[Int,Int,Int])
+  checkAll("Comonad[Coeval[Int]]", ComonadTests[Coeval].comonad[Int,Int,Int])
 }

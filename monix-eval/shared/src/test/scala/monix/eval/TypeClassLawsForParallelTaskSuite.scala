@@ -15,28 +15,34 @@
  * limitations under the License.
  */
 
-package monix.cats.tests
+package monix.eval
 
 import cats.Eq
 import cats.kernel.laws.GroupLaws
-import cats.laws.discipline.ApplicativeTests
-import cats.implicits._
-import monix.eval.Task
-import monix.eval.Task.nondeterminism
+import cats.laws.discipline.{CoflatMapTests, MonadErrorTests}
+import cats.syntax.all._
 import monix.execution.schedulers.TestScheduler
 import org.scalacheck.Arbitrary
-import scala.concurrent.duration._
 import scala.util.Success
+import scala.concurrent.duration._
 
-object ParallelTaskLawsSuite extends BaseLawsSuite with GroupLaws[Task[Int]] {
+object TypeClassLawsForParallelTaskSuite extends BaseLawsSuite
+  with GroupLaws[Task[Int]]  {
+
+  import monix.eval.Task.nondeterminism
+
   // for GroupLaws
   override def Equ: Eq[Task[Int]] = equalityTask[Int]
   override def Arb: Arbitrary[Task[Int]] = arbitraryTask[Int]
 
+  // Actual tests ...
+
   checkAll("Group[ParallelTask[Int]]", GroupLaws[Task[Int]].group)
   checkAll("Monoid[ParallelTask[Int]]", GroupLaws[Task[Int]].monoid)
   checkAll("Semigroup[ParallelTask[Int]]", GroupLaws[Task[Int]].semigroup)
-  checkAll("Applicative[ParallelTask[Int]]", ApplicativeTests[Task].applicative[Int,Int,Int])
+
+  checkAll("MonadError[ParallelTask[Int]]", MonadErrorTests[Task, Throwable].monadError[Int,Int,Int])
+  checkAll("CoflatMap[ParallelTask[Int]]", CoflatMapTests[Task].coflatMap[Int,Int,Int])
 
   test("tasks should execute in parallel") {
     implicit val s = TestScheduler()

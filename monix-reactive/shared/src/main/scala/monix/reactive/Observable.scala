@@ -18,6 +18,7 @@
 package monix.reactive
 
 import java.io.{BufferedReader, InputStream, Reader}
+import cats.{CoflatMap, MonadCombine, MonadError, MonadFilter}
 import monix.eval.Coeval.Attempt
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.Ack.{Continue, Stop}
@@ -29,7 +30,6 @@ import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observables._
 import monix.reactive.observers._
 import monix.reactive.subjects._
-import monix.types._
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -88,10 +88,10 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     (implicit s: Scheduler): Cancelable = {
 
     subscribe(new Subscriber[A] {
-      implicit val scheduler = s
-      def onNext(elem: A) = nextFn(elem)
-      def onComplete() = completedFn()
-      def onError(ex: Throwable) = errorFn(ex)
+      implicit val scheduler: Scheduler = s
+      def onNext(elem: A): Future[Ack] = nextFn(elem)
+      def onComplete(): Unit = completedFn()
+      def onError(ex: Throwable): Unit = errorFn(ex)
     })
   }
 
@@ -1425,19 +1425,11 @@ object Observable {
   implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
 
   /** Type-class instances for [[Observable]]. */
-  class TypeClassInstances extends Suspendable.Instance[Observable]
-    with Memoizable.Instance[Observable] with MonadError.Instance[Observable,Throwable]
-    with MonadFilter.Instance[Observable] with MonoidK.Instance[Observable]
-    with Cobind.Instance[Observable]
-    with MonadRec.Instance[Observable] {
+  class TypeClassInstances extends MonadError[Observable, Throwable]
+    with MonadFilter[Observable] with MonadCombine[Observable] with CoflatMap[Observable] {
 
-    override def pure[A](a: A): Observable[A] = Observable.now(a)
-    override def suspend[A](fa: => Observable[A]): Observable[A] = Observable.defer(fa)
-    override def eval[A](a: => A): Observable[A] = Observable.eval(a)
-    override def evalOnce[A](a: => A): Observable[A] = Observable.evalOnce(a)
-    override def memoize[A](fa: Observable[A]): Observable[A] = fa.cache
-    override val unit: Observable[Unit] = Observable.now(())
-
+    override def pure[A](a: A): Observable[A] =
+      Observable.now(a)
     override def combineK[A](x: Observable[A], y: Observable[A]): Observable[A] =
       x ++ y
     override def flatMap[A, B](fa: Observable[A])(f: (A) => Observable[B]): Observable[B] =
@@ -1456,17 +1448,19 @@ object Observable {
       fa.map(f)
     override def raiseError[A](e: Throwable): Observable[A] =
       Observable.raiseError(e)
-    override def onErrorHandle[A](fa: Observable[A])(f: (Throwable) => A): Observable[A] =
+    override def handleError[A](fa: Observable[A])(f: (Throwable) => A): Observable[A] =
       fa.onErrorHandle(f)
-    override def onErrorHandleWith[A](fa: Observable[A])(f: (Throwable) => Observable[A]): Observable[A] =
+    override def handleErrorWith[A](fa: Observable[A])(f: (Throwable) => Observable[A]): Observable[A] =
       fa.onErrorHandleWith(f)
-    override def onErrorRecover[A](fa: Observable[A])(pf: PartialFunction[Throwable, A]): Observable[A] =
+    override def recover[A](fa: Observable[A])(pf: PartialFunction[Throwable, A]): Observable[A] =
       fa.onErrorRecover(pf)
-    override def onErrorRecoverWith[A](fa: Observable[A])(pf: PartialFunction[Throwable, Observable[A]]): Observable[A] =
+    override def recoverWith[A](fa: Observable[A])(pf: PartialFunction[Throwable, Observable[A]]): Observable[A] =
       fa.onErrorRecoverWith(pf)
     override def empty[A]: Observable[A] =
       Observable.empty[A]
     override def filter[A](fa: Observable[A])(f: (A) => Boolean): Observable[A] =
       fa.filter(f)
+    override def collect[A, B](fa: Observable[A])(f: PartialFunction[A, B]): Observable[B] =
+      fa.collect(f)
   }
 }

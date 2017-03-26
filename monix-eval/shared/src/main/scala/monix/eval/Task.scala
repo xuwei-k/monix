@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import cats.{Applicative, CoflatMap, Group, MonadError}
 import monix.eval.Coeval.Attempt
 import monix.eval.internal._
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
@@ -26,7 +27,7 @@ import monix.execution.internal.Platform
 import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.ThreadLocal
 import monix.execution.{Cancelable, CancelableFuture, ExecutionModel, Scheduler}
-import monix.types._
+
 import scala.annotation.tailrec
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
@@ -639,7 +640,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
       case Eval(f) =>
         val lf = LazyOnSuccess(f)
         if (lf eq f) self else Eval(lf)
-      case ref: MemoizeSuspend[_] =>
+      case _: MemoizeSuspend[_] =>
         self
       case other =>
         new MemoizeSuspend[A](() => other, cacheErrors = false)
@@ -688,7 +689,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     Task.mapBoth(this, that)(f)
 }
 
-object Task extends TaskInstances {
+object Task extends TaskCoreInstances {
   /** Returns a new task that, when executed, will emit the result of
     * the given function, executed asynchronously.
     *
@@ -728,7 +729,7 @@ object Task extends TaskInstances {
   def deferFuture[A](fa: => Future[A]): Task[A] =
     defer(fromFuture(fa))
 
-  /** Wraps calls that generate `Future` results into [[Task]], provided 
+  /** Wraps calls that generate `Future` results into [[Task]], provided
     * a callback with an injected [[monix.execution.Scheduler Scheduler]]
     * to act as the necessary `ExecutionContext`.
     *
@@ -1256,11 +1257,11 @@ object Task extends TaskInstances {
     *
     * @param scheduler is the [[monix.execution.Scheduler Scheduler]]
     *        in charge of evaluation on `runAsync`.
-    * 
+    *
     * @param connection is the
-    *        [[monix.execution.cancelables.StackedCancelable StackedCancelable]] 
+    *        [[monix.execution.cancelables.StackedCancelable StackedCancelable]]
     *        that handles the cancellation on `runAsync`
-    * 
+    *
     * @param frameRef is a thread-local counter that keeps track
     *        of the current frame index of the run-loop. The run-loop
     *        is supposed to force an asynchronous boundary upon
@@ -1864,9 +1865,9 @@ object Task extends TaskInstances {
   implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
 }
 
-private[eval] trait TaskInstances {
+private[eval] sealed abstract class TaskCoreInstances extends TaskKernelInstances {
   /** Type-class instances for [[Task]] that have
-    * nondeterministic effects for [[monix.types.Applicative Applicative]].
+    * nondeterministic effects for [[cats.Applicative]].
     *
     * It can be optionally imported in scope to make `map2` and `ap` to
     * potentially run tasks in parallel.
@@ -1880,19 +1881,9 @@ private[eval] trait TaskInstances {
     }
 
   /** Groups the implementation for the type-classes defined in [[monix.types]]. */
-  class TypeClassInstances
-    extends Memoizable.Instance[Task]
-    with MonadError.Instance[Task,Throwable]
-    with Cobind.Instance[Task]
-    with MonadRec.Instance[Task] {
-
-    override def pure[A](a: A): Task[A] = Task.now(a)
-    override def suspend[A](fa: => Task[A]): Task[A] = Task.defer(fa)
-    override def evalOnce[A](a: => A): Task[A] = Task.evalOnce(a)
-    override def eval[A](a: => A): Task[A] = Task.eval(a)
-    override def memoize[A](fa: Task[A]): Task[A] = fa.memoize
-    override val unit: Task[Unit] = Task.now(())
-
+  class TypeClassInstances extends MonadError[Task, Throwable] with CoflatMap[Task] {
+    override def pure[A](a: A): Task[A] =
+      Task.now(a)
     override def flatMap[A, B](fa: Task[A])(f: (A) => Task[B]): Task[B] =
       fa.flatMap(f)
     override def flatten[A](ffa: Task[Task[A]]): Task[A] =
@@ -1909,13 +1900,33 @@ private[eval] trait TaskInstances {
       fa.map(f)
     override def raiseError[A](e: Throwable): Task[A] =
       Task.raiseError(e)
-    override def onErrorHandle[A](fa: Task[A])(f: (Throwable) => A): Task[A] =
+    override def handleError[A](fa: Task[A])(f: (Throwable) => A): Task[A] =
       fa.onErrorHandle(f)
-    override def onErrorHandleWith[A](fa: Task[A])(f: (Throwable) => Task[A]): Task[A] =
+    override def handleErrorWith[A](fa: Task[A])(f: (Throwable) => Task[A]): Task[A] =
       fa.onErrorHandleWith(f)
-    override def onErrorRecover[A](fa: Task[A])(pf: PartialFunction[Throwable, A]): Task[A] =
+    override def recover[A](fa: Task[A])(pf: PartialFunction[Throwable, A]): Task[A] =
       fa.onErrorRecover(pf)
-    override def onErrorRecoverWith[A](fa: Task[A])(pf: PartialFunction[Throwable, Task[A]]): Task[A] =
+    override def recoverWith[A](fa: Task[A])(pf: PartialFunction[Throwable, Task[A]]): Task[A] =
       fa.onErrorRecoverWith(pf)
+  }
+}
+
+private[eval] sealed abstract class TaskKernelInstances {
+  /** Implicit instance for [[cats.Group]] that converts
+    * any `Group[A]` into a `Group[Task[A]]`.
+    */
+  implicit def taskGroupInstance[A](implicit F: Applicative[Task], A: Group[A]): TaskGroupInstance[A] =
+    new TaskGroupInstance()
+
+  /** If `A` is a [[cats.Group]], than `Task[A]` is also a [[cats.Group]]. */
+  class TaskGroupInstance[A](implicit F: Applicative[Task], A: Group[A])
+    extends Group[Task[A]] {
+
+    override def inverse(a: Task[A]): Task[A] =
+      a.map(A.inverse)
+    override def empty: Task[A] =
+      Task.now(A.empty)
+    override def combine(x: Task[A], y: Task[A]): Task[A] =
+      F.map2(x, y)(A.combine)
   }
 }

@@ -17,13 +17,13 @@
 
 package monix.eval
 
-import monix.types._
+import cats.{Applicative, Bimonad, Group, MonadError}
 import monix.eval.Coeval._
 import monix.eval.internal.LazyOnSuccess
 
 import scala.annotation.tailrec
-import scala.collection.mutable
 import scala.collection.generic.CanBuildFrom
+import scala.collection.mutable
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
@@ -340,7 +340,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     for (a <- this; b <- that) yield f(a,b)
 }
 
-object Coeval {
+object Coeval extends CoevalKernelInstances {
   /** Promotes a non-strict value to a [[Coeval]].
     *
     * Alias of [[eval]].
@@ -615,7 +615,7 @@ object Coeval {
       }
     }
 
-    override def toString =
+    override def toString: String =
       synchronized {
         if (thunk != null) s"Coeval.Once($thunk)"
         else s"Coeval.Once($runAttempt)"
@@ -712,20 +712,9 @@ object Coeval {
   implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
 
   /** Groups the implementation for the type-classes defined in [[monix.types]]. */
-  class TypeClassInstances
-    extends Suspendable.Instance[Coeval]
-    with Memoizable.Instance[Coeval]
-    with MonadError.Instance[Coeval,Throwable]
-    with Comonad.Instance[Coeval]
-    with MonadRec.Instance[Coeval] {
-
-    override def pure[A](a: A): Coeval[A] = Coeval.now(a)
-    override def suspend[A](fa: => Coeval[A]): Coeval[A] = Coeval.defer(fa)
-    override def evalOnce[A](a: => A): Coeval[A] = Coeval.evalOnce(a)
-    override def eval[A](a: => A): Coeval[A] = Coeval.eval(a)
-    override def memoize[A](fa: Coeval[A]): Coeval[A] = fa.memoize
-    override val unit: Coeval[Unit] = Coeval.now(())
-
+  class TypeClassInstances extends MonadError[Coeval, Throwable] with Bimonad[Coeval] {
+    override def pure[A](a: A): Coeval[A] =
+      Coeval.now(a)
     override def extract[A](x: Coeval[A]): A =
       x.value
     override def flatMap[A, B](fa: Coeval[A])(f: (A) => Coeval[B]): Coeval[B] =
@@ -744,13 +733,33 @@ object Coeval {
       fa.map(f)
     override def raiseError[A](e: Throwable): Coeval[A] =
       Coeval.raiseError(e)
-    override def onErrorHandle[A](fa: Coeval[A])(f: (Throwable) => A): Coeval[A] =
+    override def handleError[A](fa: Coeval[A])(f: (Throwable) => A): Coeval[A] =
       fa.onErrorHandle(f)
-    override def onErrorHandleWith[A](fa: Coeval[A])(f: (Throwable) => Coeval[A]): Coeval[A] =
+    override def handleErrorWith[A](fa: Coeval[A])(f: (Throwable) => Coeval[A]): Coeval[A] =
       fa.onErrorHandleWith(f)
-    override def onErrorRecover[A](fa: Coeval[A])(pf: PartialFunction[Throwable, A]): Coeval[A] =
+    override def recover[A](fa: Coeval[A])(pf: PartialFunction[Throwable, A]): Coeval[A] =
       fa.onErrorRecover(pf)
-    override def onErrorRecoverWith[A](fa: Coeval[A])(pf: PartialFunction[Throwable, Coeval[A]]): Coeval[A] =
+    override def recoverWith[A](fa: Coeval[A])(pf: PartialFunction[Throwable, Coeval[A]]): Coeval[A] =
       fa.onErrorRecoverWith(pf)
+  }
+}
+
+private[eval] sealed abstract class CoevalKernelInstances {
+  /** Implicit instance for [[cats.Group]] that converts
+    * any `Group[A]` into a `Group[Coeval[A]]`.
+    */
+  implicit def coevalGroupInstance[A](implicit F: Applicative[Coeval], A: Group[A]): CoevalGroupInstance[A] =
+    new CoevalGroupInstance()
+
+  /** If `A` is a [[cats.Group]], than `Coeval[A]` is also a [[cats.Group]]. */
+  class CoevalGroupInstance[A](implicit F: Applicative[Coeval], A: Group[A])
+    extends Group[Coeval[A]] {
+
+    override def inverse(a: Coeval[A]): Coeval[A] =
+      a.map(A.inverse)
+    override def empty: Coeval[A] =
+      Coeval.now(A.empty)
+    override def combine(x: Coeval[A], y: Coeval[A]): Coeval[A] =
+      F.map2(x, y)(A.combine)
   }
 }

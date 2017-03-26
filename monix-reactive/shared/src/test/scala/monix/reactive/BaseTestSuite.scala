@@ -27,7 +27,7 @@ import scala.concurrent.duration._
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 
-trait BaseLawsTestSuite extends TestSuite[TestScheduler] with Checkers {
+trait BaseTestSuite extends TestSuite[TestScheduler] with Checkers {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(env: TestScheduler): Unit = {
     assert(env.state.tasks.isEmpty, "should not have tasks left to execute")

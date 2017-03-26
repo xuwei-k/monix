@@ -17,10 +17,10 @@
 
 package monix.reactive.internal.builders
 
-import monix.reactive.{BaseLawsTestSuite, Observable}
+import monix.reactive.{BaseTestSuite, Observable}
 import scala.concurrent.duration._
 
-object FirstStartedObservableSuite extends BaseLawsTestSuite {
+object FirstStartedObservableSuite extends BaseTestSuite {
   test("should mirror the first observable") { implicit s =>
     check2 { (obs1: Observable[Int], obs: Observable[Int]) =>
       val amb = obs1.ambWith(obs.delaySubscription(365.days))

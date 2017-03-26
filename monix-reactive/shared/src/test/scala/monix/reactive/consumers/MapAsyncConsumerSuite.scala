@@ -19,10 +19,10 @@ package monix.reactive.consumers
 
 import monix.eval.Task
 import monix.execution.exceptions.DummyException
-import monix.reactive.{BaseLawsTestSuite, Consumer, Observable}
+import monix.reactive.{BaseTestSuite, Consumer, Observable}
 import scala.util.Failure
 
-object MapAsyncConsumerSuite extends BaseLawsTestSuite {
+object MapAsyncConsumerSuite extends BaseTestSuite {
   test("consumer.mapAsync equivalence with task.map") { implicit s =>
     check1 { (obs: Observable[Int]) =>
       val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)

@@ -19,10 +19,10 @@ package monix.reactive.internal.builders
 
 import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
-import monix.reactive.{BaseLawsTestSuite, Observable}
+import monix.reactive.{BaseTestSuite, Observable}
 import scala.util.Success
 
-object EvalObservableSuite extends BaseLawsTestSuite {
+object EvalObservableSuite extends BaseTestSuite {
   test("Observable.eval(now(value)) should work") { implicit s =>
     check1 { (value: Int) =>
       val obs1 = Observable.coeval(Coeval.now(value))

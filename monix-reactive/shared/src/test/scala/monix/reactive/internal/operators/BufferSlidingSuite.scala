@@ -18,11 +18,11 @@
 package monix.reactive.internal.operators
 
 import monix.eval.Task
-import monix.reactive.{BaseLawsTestSuite, Observable}
+import monix.reactive.{BaseTestSuite, Observable}
 import scala.concurrent.duration._
 import scala.util.Success
 
-object BufferSlidingSuite extends BaseLawsTestSuite {
+object BufferSlidingSuite extends BaseTestSuite {
   test("bufferSliding equivalence with the standard library") { implicit s =>
     check3 { (numbers: List[Int], countR: Int, skipR: Int) =>
       val count = Math.floorMod(countR, 10) + 1

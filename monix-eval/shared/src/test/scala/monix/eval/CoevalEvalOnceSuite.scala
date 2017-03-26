@@ -63,7 +63,7 @@ object CoevalEvalOnceSuite extends BaseTestSuite {
 
   test("Coeval.evalOnce.flatMap should be tail recursive") { implicit s =>
     def loop(n: Int, idx: Int): Coeval[Int] =
-      Coeval.evalOnce(idx).flatMap { a =>
+      Coeval.evalOnce(idx).flatMap { _ =>
         if (idx < n) loop(n, idx + 1).map(_ + 1) else
           Coeval.evalOnce(idx)
       }

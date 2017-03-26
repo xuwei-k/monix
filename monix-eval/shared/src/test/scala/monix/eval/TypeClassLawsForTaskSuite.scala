@@ -17,23 +17,24 @@
 
 package monix.eval
 
-import monix.types.tests._
+import cats.Eq
+import cats.kernel.laws.GroupLaws
+import cats.laws.discipline.{CoflatMapTests, MonadErrorTests}
+import org.scalacheck.Arbitrary
 
 object TypeClassLawsForTaskSuite extends BaseLawsSuite
-  with MemoizableLawsSuite[Task,Int,Long,Short]
-  with SuspendableLawsSuite[Task,Int,Long,Short]
-  with MonadErrorLawsSuite[Task,Int,Long,Short,Throwable]
-  with CobindLawsSuite[Task,Int,Long,Short]
-  with MonadRecLawsSuite[Task,Int,Long,Short] {
+  with GroupLaws[Task[Int]]  {
 
-  override def F: Task.TypeClassInstances =
-    Task.typeClassInstances
+  // for GroupLaws
+  override def Equ: Eq[Task[Int]] = equalityTask[Int]
+  override def Arb: Arbitrary[Task[Int]] = arbitraryTask[Int]
 
   // Actual tests ...
 
-  monadEvalErrorCheck("Task")
-  memoizableCheck("Task", includeSupertypes = true)
-  monadErrorCheck("Task", includeSupertypes = false)
-  monadRecCheck("Task", includeSupertypes = false)
-  cobindCheck("Task", includeSupertypes = false)
+  checkAll("Group[Task[Int]]", GroupLaws[Task[Int]].group)
+  checkAll("Monoid[Task[Int]]", GroupLaws[Task[Int]].monoid)
+  checkAll("Semigroup[Task[Int]]", GroupLaws[Task[Int]].semigroup)
+
+  checkAll("MonadError[Task[Int]]", MonadErrorTests[Task, Throwable].monadError[Int,Int,Int])
+  checkAll("CoflatMap[Task[Int]]", CoflatMapTests[Task].coflatMap[Int,Int,Int])
 }

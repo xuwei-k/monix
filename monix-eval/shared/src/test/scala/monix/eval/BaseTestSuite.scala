@@ -17,14 +17,14 @@
 
 package monix.eval
 
+import cats.kernel.Eq
 import minitest.TestSuite
 import minitest.laws.Checkers
 import monix.execution.schedulers.TestScheduler
-import monix.types.tests.Eq
 import org.scalacheck.Prop
 
 abstract class BaseTestSuite extends TestSuite[TestScheduler]
-  with Checkers with ArbitraryInstances {
+  with Checkers with ArbitraryInstances with cats.instances.AllInstances {
 
   def setup(): TestScheduler = TestScheduler()
   def tearDown(env: TestScheduler): Unit = {
@@ -32,16 +32,16 @@ abstract class BaseTestSuite extends TestSuite[TestScheduler]
   }
 
   implicit def isEquivToProp[A](p: IsEquiv[A])(implicit A: Eq[A]): Prop =
-    Prop(A(p.lh, p.rh))
+    Prop(A.eqv(p.lh, p.rh))
 
   implicit def isEquivListToProp[A](ns: List[IsEquiv[A]])(implicit A: Eq[A]): Prop =
-    Prop(ns.forall(p => A(p.lh, p.rh)))
+    Prop(ns.forall(p => A.eqv(p.lh, p.rh)))
 
   implicit def isNotEquivToProp[A](p: IsNotEquiv[A])(implicit A: Eq[A]): Prop =
-    Prop(!A(p.lh, p.rh))
+    Prop(!A.eqv(p.lh, p.rh))
 
   implicit def isNotEquivListToProp[A](ns: List[IsNotEquiv[A]])(implicit A: Eq[A]): Prop =
-    Prop(ns.forall(p => !A(p.lh, p.rh)))
+    Prop(ns.forall(p => !A.eqv(p.lh, p.rh)))
 }
 
 /** For expressing equivalence. */

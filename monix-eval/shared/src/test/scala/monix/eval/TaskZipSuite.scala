@@ -22,7 +22,7 @@ import monix.execution.exceptions.DummyException
 import concurrent.duration._
 import scala.util.{Failure, Random, Success}
 
-object TaskZipSuite extends BaseTestSuite{
+object TaskZipSuite extends BaseTestSuite {
   test("Task#zip should work if source finishes first") { implicit s =>
     val f = Task(1).zip(Task(2).delayExecution(1.second)).runAsync
 

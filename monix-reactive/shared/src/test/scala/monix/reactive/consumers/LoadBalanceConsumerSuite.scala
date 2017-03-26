@@ -24,11 +24,11 @@ import monix.execution.cancelables.{AssignableCancelable, BooleanCancelable, Com
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
-import monix.reactive.{BaseLawsTestSuite, Consumer, Observable, Observer}
+import monix.reactive.{BaseTestSuite, Consumer, Observable, Observer}
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}
 
-object LoadBalanceConsumerSuite extends BaseLawsTestSuite {
+object LoadBalanceConsumerSuite extends BaseTestSuite {
   test("trigger error when parallelism < 1") { implicit s =>
     intercept[IllegalArgumentException] {
       Consumer.loadBalance(0, Consumer.head[Int])
