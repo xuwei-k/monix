@@ -711,7 +711,7 @@ object Coeval extends CoevalKernelInstances {
   /** Implicit type-class instances of [[Coeval]]. */
   implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
 
-  /** Groups the implementation for the type-classes defined in [[monix.types]]. */
+  /** Groups the implementation for the type-classes defined in [[cats]]. */
   class TypeClassInstances extends MonadError[Coeval, Throwable] with Bimonad[Coeval] {
     override def pure[A](a: A): Coeval[A] =
       Coeval.now(a)

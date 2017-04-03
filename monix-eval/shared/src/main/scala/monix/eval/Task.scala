@@ -1878,9 +1878,13 @@ private[eval] sealed abstract class TaskCoreInstances extends TaskKernelInstance
         Task.mapBoth(ff,fa)(_(_))
       override def map2[A, B, Z](fa: Task[A], fb: Task[B])(f: (A, B) => Z): Task[Z] =
         Task.mapBoth(fa, fb)(f)
+      override def product[A, B](fa: Task[A], fb: Task[B]): Task[(A, B)] =
+        Task.zip2(fa, fb)
+      override def ap2[A, B, Z](ff: Task[(A, B) => Z])(fa: Task[A], fb: Task[B]): Task[Z] =
+        Task.zipMap3(ff, fa, fb)(_(_,_))
     }
 
-  /** Groups the implementation for the type-classes defined in [[monix.types]]. */
+  /** Groups the implementation for the type-classes defined in [[cats]]. */
   class TypeClassInstances extends MonadError[Task, Throwable] with CoflatMap[Task] {
     override def pure[A](a: A): Task[A] =
       Task.now(a)

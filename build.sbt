@@ -263,7 +263,7 @@ lazy val unidocSettings = Seq(
 
 lazy val testSettings = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
-  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.27" % Test
+  libraryDependencies += "io.monix" %%% "minitest-laws" % "1.0.1" % Test
 )
 
 lazy val scalaJSSettings = Seq(

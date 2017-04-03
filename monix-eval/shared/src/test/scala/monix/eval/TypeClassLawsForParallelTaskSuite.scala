@@ -17,19 +17,19 @@
 
 package monix.eval
 
-import cats.Eq
+import cats.{Applicative, Eq, Functor, Monad}
 import cats.kernel.laws.GroupLaws
 import cats.laws.discipline.{CoflatMapTests, MonadErrorTests}
 import cats.syntax.all._
 import monix.execution.schedulers.TestScheduler
 import org.scalacheck.Arbitrary
+
 import scala.util.Success
 import scala.concurrent.duration._
+import monix.eval.Task.nondeterminism
 
 object TypeClassLawsForParallelTaskSuite extends BaseLawsSuite
   with GroupLaws[Task[Int]]  {
-
-  import monix.eval.Task.nondeterminism
 
   // for GroupLaws
   override def Equ: Eq[Task[Int]] = equalityTask[Int]
@@ -44,7 +44,11 @@ object TypeClassLawsForParallelTaskSuite extends BaseLawsSuite
   checkAll("MonadError[ParallelTask[Int]]", MonadErrorTests[Task, Throwable].monadError[Int,Int,Int])
   checkAll("CoflatMap[ParallelTask[Int]]", CoflatMapTests[Task].coflatMap[Int,Int,Int])
 
-  test("tasks should execute in parallel") {
+  test("ParallelTask should execute in parallel") {
+    assertEquals(implicitly[Functor[Task]], nondeterminism)
+    assertEquals(implicitly[Applicative[Task]], nondeterminism)
+    assertEquals(implicitly[Monad[Task]], nondeterminism)
+
     implicit val s = TestScheduler()
 
     val task1 = Task(1).delayExecution(1.second)
