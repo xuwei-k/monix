@@ -17,16 +17,17 @@
 
 package monix.eval
 
-import cats.{Applicative, Eq, Functor, Monad}
+import cats.Eq
 import cats.kernel.laws.GroupLaws
 import cats.laws.discipline.{CoflatMapTests, MonadErrorTests}
 import cats.syntax.all._
+import monix.eval.Task.nondeterminism
 import monix.execution.schedulers.TestScheduler
+import monix.types.{ApplicativeStrategy, CatsParallelTaskInstances}
 import org.scalacheck.Arbitrary
 
-import scala.util.Success
 import scala.concurrent.duration._
-import monix.eval.Task.nondeterminism
+import scala.util.Success
 
 object TypeClassLawsForParallelTaskSuite extends BaseLawsSuite
   with GroupLaws[Task[Int]]  {
@@ -44,12 +45,13 @@ object TypeClassLawsForParallelTaskSuite extends BaseLawsSuite
   checkAll("MonadError[ParallelTask[Int]]", MonadErrorTests[Task, Throwable].monadError[Int,Int,Int])
   checkAll("CoflatMap[ParallelTask[Int]]", CoflatMapTests[Task].coflatMap[Int,Int,Int])
 
-  test("ParallelTask should execute in parallel") {
-    assertEquals(implicitly[Functor[Task]], nondeterminism)
-    assertEquals(implicitly[Applicative[Task]], nondeterminism)
-    assertEquals(implicitly[Monad[Task]], nondeterminism)
-
+  test("Applicative[Task] with Task.nondeterminism should execute in parallel") {
     implicit val s = TestScheduler()
+
+    assert(
+      implicitly[cats.Monad[Task]].isInstanceOf[CatsParallelTaskInstances],
+      "isInstanceOf[CatsParallelTaskInstances]"
+    )
 
     val task1 = Task(1).delayExecution(1.second)
     val task2 = Task(2).delayExecution(1.second)
@@ -58,5 +60,35 @@ object TypeClassLawsForParallelTaskSuite extends BaseLawsSuite
     val f = both.runAsync
     s.tick(1.second)
     assertEquals(f.value, Some(Success(3)))
+  }
+
+  test("Applicative[Task.Parallel] should execute in parallel") {
+    implicit val s = TestScheduler()
+
+    assert(
+      implicitly[cats.Monad[Task.Parallel]].isInstanceOf[CatsParallelTaskInstances],
+      "isInstanceOf[CatsParallelTaskInstances]"
+    )
+
+    val task1 = Task(1).asParallel.delayExecution(1.second)
+    val task2 = Task(2).asParallel.delayExecution(1.second)
+    val both = (task1 |@| task2).map(_ + _)
+
+    val f = both.runAsync
+    s.tick(1.second)
+    assertEquals(f.value, Some(Success(3)))
+  }
+
+  test("Task.Parallel should yield the same instance as with Task.nondeterminism") {
+    assertEquals(implicitly[ApplicativeStrategy], ApplicativeStrategy.Parallel)
+
+    val inst1 = implicitly[cats.Monad[Task.Parallel]]
+    val inst2 = implicitly[cats.Monad[Task]]
+
+    assert(inst1 == inst2, "inst1 == inst2")
+    assert(
+      inst2.isInstanceOf[CatsParallelTaskInstances],
+      "inst2.isInstanceOf[CatsParallelTaskInstances]"
+    )
   }
 }

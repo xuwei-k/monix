@@ -17,10 +17,9 @@
 
 package monix.eval
 
-import cats.{Applicative, Bimonad, Group, MonadError}
 import monix.eval.Coeval._
 import monix.eval.internal.LazyOnSuccess
-
+import monix.types._
 import scala.annotation.tailrec
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
@@ -708,58 +707,40 @@ object Coeval extends CoevalKernelInstances {
     reduceCoeval(source, Nil).asInstanceOf[Attempt[A]]
   }
 
-  /** Implicit type-class instances of [[Coeval]]. */
-  implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
-
-  /** Groups the implementation for the type-classes defined in [[cats]]. */
-  class TypeClassInstances extends MonadError[Coeval, Throwable] with Bimonad[Coeval] {
-    override def pure[A](a: A): Coeval[A] =
-      Coeval.now(a)
-    override def extract[A](x: Coeval[A]): A =
-      x.value
-    override def flatMap[A, B](fa: Coeval[A])(f: (A) => Coeval[B]): Coeval[B] =
-      fa.flatMap(f)
-    override def flatten[A](ffa: Coeval[Coeval[A]]): Coeval[A] =
-      ffa.flatten
-    override def tailRecM[A, B](a: A)(f: (A) => Coeval[Either[A, B]]): Coeval[B] =
-      Coeval.tailRecM(a)(f)
-    override def coflatMap[A, B](fa: Coeval[A])(f: (Coeval[A]) => B): Coeval[B] =
-      Coeval.eval(f(fa))
-    override def ap[A, B](ff: Coeval[(A) => B])(fa: Coeval[A]): Coeval[B] =
-      for (f <- ff; a <- fa) yield f(a)
-    override def map2[A, B, Z](fa: Coeval[A], fb: Coeval[B])(f: (A, B) => Z): Coeval[Z] =
-      for (a <- fa; b <- fb) yield f(a, b)
-    override def map[A, B](fa: Coeval[A])(f: (A) => B): Coeval[B] =
-      fa.map(f)
-    override def raiseError[A](e: Throwable): Coeval[A] =
-      Coeval.raiseError(e)
-    override def handleError[A](fa: Coeval[A])(f: (Throwable) => A): Coeval[A] =
-      fa.onErrorHandle(f)
-    override def handleErrorWith[A](fa: Coeval[A])(f: (Throwable) => Coeval[A]): Coeval[A] =
-      fa.onErrorHandleWith(f)
-    override def recover[A](fa: Coeval[A])(pf: PartialFunction[Throwable, A]): Coeval[A] =
-      fa.onErrorRecover(pf)
-    override def recoverWith[A](fa: Coeval[A])(pf: PartialFunction[Throwable, Coeval[A]]): Coeval[A] =
-      fa.onErrorRecoverWith(pf)
-  }
+  /** Implicit Cats type-class instances of [[Coeval]]. */
+  implicit def catsTypeClassInstances: CatsCoevalDefaultInstances =
+    macro monix.types.EvalMacros.catsCoevalTypeClassInstances
 }
 
-private[eval] sealed abstract class CoevalKernelInstances {
-  /** Implicit instance for [[cats.Group]] that converts
-    * any `Group[A]` into a `Group[Coeval[A]]`.
+private[eval] sealed abstract class CoevalKernelInstances extends CoevalKernelInstances1 {
+  /** Instance defined for all `A` for which a [[cats.Group]] is defined,
+    * providing a `Group` implementation for all `Coeval[A]`.
+    *
+    * Note this macro will require a [[cats.Applicative]] for [[monix.eval.Coeval]]
+    * and a [[cats.Group]] for `A`.
     */
-  implicit def coevalGroupInstance[A](implicit F: Applicative[Coeval], A: Group[A]): CoevalGroupInstance[A] =
-    new CoevalGroupInstance()
+  implicit def catsCoevalGroupInstance[A]: CatsCoevalGroupInstance[A] =
+    macro monix.types.EvalMacros.coevalGroupInstance[A]
+}
 
-  /** If `A` is a [[cats.Group]], than `Coeval[A]` is also a [[cats.Group]]. */
-  class CoevalGroupInstance[A](implicit F: Applicative[Coeval], A: Group[A])
-    extends Group[Coeval[A]] {
+private[eval] sealed abstract class CoevalKernelInstances1 extends CoevalKernelInstances0 {
+  /** Instance defined for all `A` for which a [[cats.Monoid]] is defined,
+    * providing a `Monoid` implementation for all `Coeval[A]`.
+    *
+    * Note this macro will require a [[cats.Applicative]] for [[monix.eval.Coeval]]
+    * and a [[cats.Monoid]] for `A`.
+    */
+  implicit def catsCoevalMonoidInstance[A]: CatsCoevalMonoidInstance[A] =
+    macro monix.types.EvalMacros.coevalMonoidInstance[A]
+}
 
-    override def inverse(a: Coeval[A]): Coeval[A] =
-      a.map(A.inverse)
-    override def empty: Coeval[A] =
-      Coeval.now(A.empty)
-    override def combine(x: Coeval[A], y: Coeval[A]): Coeval[A] =
-      F.map2(x, y)(A.combine)
-  }
+private[eval] sealed abstract class CoevalKernelInstances0 {
+  /** Instance defined for all `A` for which a [[cats.Semigroup]] is defined,
+    * providing a `Semigroup` implementation for all `Coeval[A]`.
+    *
+    * Note this macro will require a [[cats.Applicative]] for [[monix.eval.Coeval]]
+    * and a [[cats.Semigroup]] for `A`.
+    */
+  implicit def catsCoevalSemigroupInstance[A]: CatsCoevalSemigroupInstance[A] =
+    macro monix.types.EvalMacros.coevalSemigroupInstance[A]
 }

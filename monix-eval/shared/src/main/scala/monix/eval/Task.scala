@@ -17,7 +17,6 @@
 
 package monix.eval
 
-import cats.{Applicative, CoflatMap, Group, MonadError}
 import monix.eval.Coeval.Attempt
 import monix.eval.internal._
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
@@ -27,6 +26,7 @@ import monix.execution.internal.Platform
 import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.ThreadLocal
 import monix.execution.{Cancelable, CancelableFuture, ExecutionModel, Scheduler}
+import monix.types._
 
 import scala.annotation.tailrec
 import scala.collection.generic.CanBuildFrom
@@ -1861,76 +1861,98 @@ object Task extends TaskCoreInstances {
       .asInstanceOf[CancelableFuture[A]]
   }
 
-  /** Type-class instances for [[Task]]. */
-  implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
+  /** Type-class instances for [[Task]].
+    *
+    * @param s is the
+    *        [[ApplicativeStrategy ApplicativeStrategy]]
+    *        to use in building the type-class instances, specifying either
+    *        serial or parallel execution.
+    */
+  implicit def catsTypeClassInstances(implicit s: ApplicativeStrategy): CatsSerialTaskInstances =
+    macro monix.types.EvalMacros.catsTaskTypeClassInstances
+
+  /** Extension methods for [[Task]] related to parallelism with
+    * `Applicative` instances and [[Task.Parallel]].
+    */
+  implicit class TaskParallelismExtensions[+A, F[+T] <: Task[T]](val source: F[A])
+    extends AnyVal {
+
+    /** Cast the source to [[Task.Parallel]], such that it can benefit from
+      * parallelism when using `Applicative` abstractions.
+      */
+    def asParallel: Task.Parallel[A] =
+      source.asInstanceOf[Task.Parallel[A]]
+
+    /** Removes the [[Task.Parallel]] tag. */
+    def asUntagged: Task[A] =
+      source.asInstanceOf[Task[A]]
+  }
 }
 
 private[eval] sealed abstract class TaskCoreInstances extends TaskKernelInstances {
-  /** Type-class instances for [[Task]] that have
-    * nondeterministic effects for [[cats.Applicative]].
+  /** Implicit value that, if in scope, will trigger the use of
+    * `Applicative[Task]` instances that do parallel execution in
+    * `ap`, `map2` and `product`.
     *
-    * It can be optionally imported in scope to make `map2` and `ap` to
-    * potentially run tasks in parallel.
+    * For usage, it needs to be imported in scope:
+    * {{{
+    *   import monix.eval.Task.nondeterminism
+    *
+    *   // Now the returned instance can do parallel execution:
+    *   val ap = implicitly[Applicative[Task]]
+    *   // Sample:
+    *   ap.map2(Task(1), Task(2))(_ + _)
+    * }}}
     */
-  implicit val nondeterminism: TypeClassInstances =
-    new TypeClassInstances {
-      override def ap[A, B](ff: Task[(A) => B])(fa: Task[A]): Task[B] =
-        Task.mapBoth(ff,fa)(_(_))
-      override def map2[A, B, Z](fa: Task[A], fb: Task[B])(f: (A, B) => Z): Task[Z] =
-        Task.mapBoth(fa, fb)(f)
-      override def product[A, B](fa: Task[A], fb: Task[B]): Task[(A, B)] =
-        Task.zip2(fa, fb)
-      override def ap2[A, B, Z](ff: Task[(A, B) => Z])(fa: Task[A], fb: Task[B]): Task[Z] =
-        Task.zipMap3(ff, fa, fb)(_(_,_))
-    }
+  implicit val nondeterminism: ApplicativeStrategy =
+    ApplicativeStrategy.Parallel
 
-  /** Groups the implementation for the type-classes defined in [[cats]]. */
-  class TypeClassInstances extends MonadError[Task, Throwable] with CoflatMap[Task] {
-    override def pure[A](a: A): Task[A] =
-      Task.now(a)
-    override def flatMap[A, B](fa: Task[A])(f: (A) => Task[B]): Task[B] =
-      fa.flatMap(f)
-    override def flatten[A](ffa: Task[Task[A]]): Task[A] =
-      ffa.flatten
-    override def tailRecM[A, B](a: A)(f: (A) => Task[Either[A, B]]): Task[B] =
-      Task.tailRecM(a)(f)
-    override def coflatMap[A, B](fa: Task[A])(f: (Task[A]) => B): Task[B] =
-      Task.eval(f(fa))
-    override def ap[A, B](ff: Task[(A) => B])(fa: Task[A]): Task[B] =
-      for (f <- ff; a <- fa) yield f(a)
-    override def map2[A, B, Z](fa: Task[A], fb: Task[B])(f: (A, B) => Z): Task[Z] =
-      for (a <- fa; b <- fb) yield f(a,b)
-    override def map[A, B](fa: Task[A])(f: (A) => B): Task[B] =
-      fa.map(f)
-    override def raiseError[A](e: Throwable): Task[A] =
-      Task.raiseError(e)
-    override def handleError[A](fa: Task[A])(f: (Throwable) => A): Task[A] =
-      fa.onErrorHandle(f)
-    override def handleErrorWith[A](fa: Task[A])(f: (Throwable) => Task[A]): Task[A] =
-      fa.onErrorHandleWith(f)
-    override def recover[A](fa: Task[A])(pf: PartialFunction[Throwable, A]): Task[A] =
-      fa.onErrorRecover(pf)
-    override def recoverWith[A](fa: Task[A])(pf: PartialFunction[Throwable, Task[A]]): Task[A] =
-      fa.onErrorRecoverWith(pf)
+  /** Tagged [[Task]] alias, used to discriminate between `Applicative`
+    * instances, as `Applicative[Task.Parallel]` is guaranteed
+    * to use [[ApplicativeStrategy.Parallel parallelism]].
+    */
+  type Parallel[+A] = Task[A] @@ Tags.Parallel
+
+  object Parallel {
+    /** Converts [[Task]] instances into ones tagged for parallel execution. */
+    @inline def apply[A](source: Task[A]): Task.Parallel[A] =
+      source.asInstanceOf[Parallel[A]]
   }
+
+  /** Type-class instances for [[Task.Parallel]]. */
+  implicit def catsParallelTypeClassInstances: CatsTaskInstances[Task.Parallel] =
+    macro monix.types.EvalMacros.catsParallelTaskTypeClassInstances
 }
 
-private[eval] sealed abstract class TaskKernelInstances {
-  /** Implicit instance for [[cats.Group]] that converts
-    * any `Group[A]` into a `Group[Task[A]]`.
+private[eval] sealed abstract class TaskKernelInstances extends TaskKernelInstances1 {
+  /** Instance defined for all `A` for which a [[cats.Group]] is defined,
+    * providing a `Group` implementation for all `Task[A]`.
+    *
+    * Note this macro will require a [[cats.Applicative]] for [[monix.eval.Task]]
+    * and a [[cats.Group]] for `A`.
     */
-  implicit def taskGroupInstance[A](implicit F: Applicative[Task], A: Group[A]): TaskGroupInstance[A] =
-    new TaskGroupInstance()
+  implicit def catsTaskGroupInstance[A]: CatsTaskGroupInstance[A] =
+    macro monix.types.EvalMacros.taskGroupInstance[A]
+}
 
-  /** If `A` is a [[cats.Group]], than `Task[A]` is also a [[cats.Group]]. */
-  class TaskGroupInstance[A](implicit F: Applicative[Task], A: Group[A])
-    extends Group[Task[A]] {
+private[eval] sealed abstract class TaskKernelInstances1 extends TaskKernelInstances0 {
+  /** Instance defined for all `A` for which a [[cats.Monoid]] is defined,
+    * providing a `Monoid` implementation for all `Task[A]`.
+    *
+    * Note this macro will require a [[cats.Applicative]] for [[monix.eval.Task]]
+    * and a [[cats.Monoid]] for `A`.
+    */
+  implicit def catsTaskMonoidInstance[A]: CatsTaskMonoidInstance[A] =
+    macro monix.types.EvalMacros.taskMonoidInstance[A]
+}
 
-    override def inverse(a: Task[A]): Task[A] =
-      a.map(A.inverse)
-    override def empty: Task[A] =
-      Task.now(A.empty)
-    override def combine(x: Task[A], y: Task[A]): Task[A] =
-      F.map2(x, y)(A.combine)
-  }
+private[eval] sealed abstract class TaskKernelInstances0 {
+  /** Instance defined for all `A` for which a [[cats.Semigroup]] is defined,
+    * providing a `Semigroup` implementation for all `Task[A]`.
+    *
+    * Note this macro will require a [[cats.Applicative]] for [[monix.eval.Task]]
+    * and a [[cats.Semigroup]] for `A`.
+    */
+  implicit def catsTaskSemigroupInstance[A]: CatsTaskSemigroupInstance[A] =
+    macro monix.types.EvalMacros.taskSemigroupInstance[A]
 }
