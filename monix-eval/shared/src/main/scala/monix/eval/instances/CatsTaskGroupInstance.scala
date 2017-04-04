@@ -15,25 +15,25 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.eval.instances
 
 import cats.{Applicative, Group}
-import monix.eval.Coeval
+import monix.eval.Task
 
 /** Instance defined for all `A` for which a [[cats.Group]] is defined,
-  * providing a `Group` implementation for all `Coeval[A]`.
+  * providing a `Group` implementation for all `Task[A]`.
   *
-  * @param F is the [[cats.Applicative]] instance for our [[monix.eval.Coeval]]
+  * @param F is the [[cats.Applicative]] instance for our [[monix.eval.Task]]
   * @param A is the [[cats.Group]] restriction for our `A` type
   */
-class CatsCoevalGroupInstance[A](implicit F: Applicative[Coeval], A: Group[A])
-  extends CatsCoevalMonoidInstance[A] with CatsCoevalGroupInstance.CoevalGroup[A] {
+class CatsTaskGroupInstance[A](implicit F: Applicative[Task], A: Group[A])
+  extends CatsTaskMonoidInstance[A] with CatsTaskGroupInstance.TaskGroup[A] {
 
-  override final def inverse(a: Coeval[A]): Coeval[A] =
+  override final def inverse(a: Task[A]): Task[A] =
     a.map(A.inverse)
 }
 
-object CatsCoevalGroupInstance {
+object CatsTaskGroupInstance {
   /** Indirection to avoid class loading issues. */
-  trait CoevalGroup[A] extends Group[Coeval[A]]
+  trait TaskGroup[A] extends Group[Task[A]]
 }

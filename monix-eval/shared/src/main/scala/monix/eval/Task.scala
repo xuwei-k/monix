@@ -17,7 +17,9 @@
 
 package monix.eval
 
+import cats.{Applicative, Group, Monoid, Semigroup}
 import monix.eval.Coeval.Attempt
+import monix.eval.instances._
 import monix.eval.internal._
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
 import monix.execution.atomic.Atomic
@@ -26,8 +28,6 @@ import monix.execution.internal.Platform
 import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.ThreadLocal
 import monix.execution.{Cancelable, CancelableFuture, ExecutionModel, Scheduler}
-import monix.types._
-
 import scala.annotation.tailrec
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
@@ -1869,7 +1869,8 @@ object Task extends TaskCoreInstances {
     *        serial or parallel execution.
     */
   implicit def catsTypeClassInstances(implicit s: ApplicativeStrategy): CatsSerialTaskInstances =
-    macro monix.types.EvalMacros.catsTaskTypeClassInstances
+    if (s == ApplicativeStrategy.Serial) CatsSerialTaskInstances
+    else CatsParallelTaskInstances
 
   /** Extension methods for [[Task]] related to parallelism with
     * `Applicative` instances and [[Task.Parallel]].
@@ -1920,8 +1921,8 @@ private[eval] sealed abstract class TaskCoreInstances extends TaskKernelInstance
   }
 
   /** Type-class instances for [[Task.Parallel]]. */
-  implicit def catsParallelTypeClassInstances: CatsTaskInstances[Task.Parallel] =
-    macro monix.types.EvalMacros.catsParallelTaskTypeClassInstances
+  implicit val catsParallelTypeClassInstances: CatsTaskInstances[Task.Parallel] =
+    CatsParallelTaskInstances.asInstanceOf[CatsTaskInstances[Task.Parallel]]
 }
 
 private[eval] sealed abstract class TaskKernelInstances extends TaskKernelInstances1 {
@@ -1931,8 +1932,9 @@ private[eval] sealed abstract class TaskKernelInstances extends TaskKernelInstan
     * Note this macro will require a [[cats.Applicative]] for [[monix.eval.Task]]
     * and a [[cats.Group]] for `A`.
     */
-  implicit def catsTaskGroupInstance[A]: CatsTaskGroupInstance[A] =
-    macro monix.types.EvalMacros.taskGroupInstance[A]
+  implicit def catsTaskGroupInstance[A]
+    (implicit F: Applicative[Task], A: Group[A]): CatsTaskGroupInstance[A] =
+    new CatsTaskGroupInstance[A]()
 }
 
 private[eval] sealed abstract class TaskKernelInstances1 extends TaskKernelInstances0 {
@@ -1942,8 +1944,9 @@ private[eval] sealed abstract class TaskKernelInstances1 extends TaskKernelInsta
     * Note this macro will require a [[cats.Applicative]] for [[monix.eval.Task]]
     * and a [[cats.Monoid]] for `A`.
     */
-  implicit def catsTaskMonoidInstance[A]: CatsTaskMonoidInstance[A] =
-    macro monix.types.EvalMacros.taskMonoidInstance[A]
+  implicit def catsTaskMonoidInstance[A]
+    (implicit F: Applicative[Task], A: Monoid[A]): CatsTaskMonoidInstance[A] =
+    new CatsTaskMonoidInstance[A]()
 }
 
 private[eval] sealed abstract class TaskKernelInstances0 {
@@ -1953,6 +1956,7 @@ private[eval] sealed abstract class TaskKernelInstances0 {
     * Note this macro will require a [[cats.Applicative]] for [[monix.eval.Task]]
     * and a [[cats.Semigroup]] for `A`.
     */
-  implicit def catsTaskSemigroupInstance[A]: CatsTaskSemigroupInstance[A] =
-    macro monix.types.EvalMacros.taskSemigroupInstance[A]
+  implicit def catsTaskSemigroupInstance[A]
+    (implicit F: Applicative[Task], A: Semigroup[A]): CatsTaskSemigroupInstance[A] =
+    new CatsTaskSemigroupInstance[A]()
 }

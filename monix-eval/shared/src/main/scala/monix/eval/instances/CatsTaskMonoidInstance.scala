@@ -15,25 +15,25 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.eval.instances
 
 import cats.{Applicative, Monoid}
-import monix.eval.Coeval
+import monix.eval.Task
 
 /** Instance defined for all `A` for which a [[cats.Monoid]] is defined,
-  * providing a `Monoid` implementation for all `Coeval[A]`.
+  * providing a `Monoid` implementation for all `Task[A]`.
   *
-  * @param F is the [[cats.Applicative]] instance for our [[monix.eval.Coeval]]
+  * @param F is the [[cats.Applicative]] instance for our [[monix.eval.Task]]
   * @param A is the [[cats.Monoid]] restriction for our `A` type
   */
-class CatsCoevalMonoidInstance[A](implicit F: Applicative[Coeval], A: Monoid[A])
-  extends CatsCoevalSemigroupInstance[A] with CatsCoevalMonoidInstance.CoevalMonoid[A] {
+class CatsTaskMonoidInstance[A](implicit F: Applicative[Task], A: Monoid[A])
+  extends CatsTaskSemigroupInstance[A] with CatsTaskMonoidInstance.TaskMonoid[A] {
 
-  override final def empty: Coeval[A] =
-    Coeval.now(A.empty)
+  override final def empty: Task[A] =
+    Task.now(A.empty)
 }
 
-object CatsCoevalMonoidInstance {
+object CatsTaskMonoidInstance {
   /** Indirection to avoid class loading issues. */
-  trait CoevalMonoid[A] extends Monoid[Coeval[A]]
+  trait TaskMonoid[A] extends Monoid[Task[A]]
 }

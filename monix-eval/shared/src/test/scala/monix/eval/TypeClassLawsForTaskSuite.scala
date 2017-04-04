@@ -21,8 +21,8 @@ import cats.Eq
 import cats.kernel.laws.GroupLaws
 import cats.laws.discipline.{CoflatMapTests, MonadErrorTests}
 import cats.syntax.all._
+import monix.eval.instances.CatsSerialTaskInstances
 import monix.execution.schedulers.TestScheduler
-import monix.types.CatsSerialTaskInstances
 import org.scalacheck.Arbitrary
 
 import scala.concurrent.duration._

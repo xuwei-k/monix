@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.eval.instances
 
 import cats.{CoflatMap, MonadError}
 import monix.eval.Task

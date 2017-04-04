@@ -15,25 +15,25 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.eval.instances
 
-import cats.{Applicative, Semigroup}
+import cats.{Applicative, Monoid}
 import monix.eval.Coeval
 
-/** Instance defined for all `A` for which a [[cats.Semigroup]] is defined,
-  * providing a `Semigroup` implementation for all `Coeval[A]`.
+/** Instance defined for all `A` for which a [[cats.Monoid]] is defined,
+  * providing a `Monoid` implementation for all `Coeval[A]`.
   *
   * @param F is the [[cats.Applicative]] instance for our [[monix.eval.Coeval]]
-  * @param A is the [[cats.Semigroup]] restriction for our `A` type
+  * @param A is the [[cats.Monoid]] restriction for our `A` type
   */
-class CatsCoevalSemigroupInstance[A](implicit F: Applicative[Coeval], A: Semigroup[A])
-  extends CatsCoevalSemigroupInstance.CoevalSemigroup[A] {
+class CatsCoevalMonoidInstance[A](implicit F: Applicative[Coeval], A: Monoid[A])
+  extends CatsCoevalSemigroupInstance[A] with CatsCoevalMonoidInstance.CoevalMonoid[A] {
 
-  override final def combine(x: Coeval[A], y: Coeval[A]): Coeval[A] =
-    F.map2(x, y)(A.combine)
+  override final def empty: Coeval[A] =
+    Coeval.now(A.empty)
 }
 
-object CatsCoevalSemigroupInstance {
+object CatsCoevalMonoidInstance {
   /** Indirection to avoid class loading issues. */
-  trait CoevalSemigroup[A] extends Semigroup[Coeval[A]]
+  trait CoevalMonoid[A] extends Monoid[Coeval[A]]
 }

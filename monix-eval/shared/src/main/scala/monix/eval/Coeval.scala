@@ -17,9 +17,10 @@
 
 package monix.eval
 
+import cats.{Applicative, Group, Monoid, Semigroup}
 import monix.eval.Coeval._
+import monix.eval.instances.{CatsCoevalGroupInstance, CatsCoevalInstances, CatsCoevalMonoidInstance, CatsCoevalSemigroupInstance}
 import monix.eval.internal.LazyOnSuccess
-import monix.types._
 import scala.annotation.tailrec
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
@@ -708,8 +709,8 @@ object Coeval extends CoevalKernelInstances {
   }
 
   /** Implicit Cats type-class instances of [[Coeval]]. */
-  implicit def catsTypeClassInstances: CatsCoevalDefaultInstances =
-    macro monix.types.EvalMacros.catsCoevalTypeClassInstances
+  implicit val catsTypeClassInstances: CatsCoevalInstances =
+    CatsCoevalInstances
 }
 
 private[eval] sealed abstract class CoevalKernelInstances extends CoevalKernelInstances1 {
@@ -719,8 +720,9 @@ private[eval] sealed abstract class CoevalKernelInstances extends CoevalKernelIn
     * Note this macro will require a [[cats.Applicative]] for [[monix.eval.Coeval]]
     * and a [[cats.Group]] for `A`.
     */
-  implicit def catsCoevalGroupInstance[A]: CatsCoevalGroupInstance[A] =
-    macro monix.types.EvalMacros.coevalGroupInstance[A]
+  implicit def catsCoevalGroupInstance[A]
+    (implicit F: Applicative[Coeval], A: Group[A]): CatsCoevalGroupInstance[A] =
+    new CatsCoevalGroupInstance[A]()
 }
 
 private[eval] sealed abstract class CoevalKernelInstances1 extends CoevalKernelInstances0 {
@@ -730,8 +732,9 @@ private[eval] sealed abstract class CoevalKernelInstances1 extends CoevalKernelI
     * Note this macro will require a [[cats.Applicative]] for [[monix.eval.Coeval]]
     * and a [[cats.Monoid]] for `A`.
     */
-  implicit def catsCoevalMonoidInstance[A]: CatsCoevalMonoidInstance[A] =
-    macro monix.types.EvalMacros.coevalMonoidInstance[A]
+  implicit def catsCoevalMonoidInstance[A]
+    (implicit F: Applicative[Coeval], A: Monoid[A]): CatsCoevalMonoidInstance[A] =
+    new CatsCoevalMonoidInstance[A]()
 }
 
 private[eval] sealed abstract class CoevalKernelInstances0 {
@@ -741,6 +744,7 @@ private[eval] sealed abstract class CoevalKernelInstances0 {
     * Note this macro will require a [[cats.Applicative]] for [[monix.eval.Coeval]]
     * and a [[cats.Semigroup]] for `A`.
     */
-  implicit def catsCoevalSemigroupInstance[A]: CatsCoevalSemigroupInstance[A] =
-    macro monix.types.EvalMacros.coevalSemigroupInstance[A]
+  implicit def catsCoevalSemigroupInstance[A]
+    (implicit F: Applicative[Coeval], A: Semigroup[A]): CatsCoevalSemigroupInstance[A] =
+    new CatsCoevalSemigroupInstance[A]()
 }

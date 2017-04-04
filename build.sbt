@@ -261,13 +261,6 @@ lazy val unidocSettings = Seq(
     Opts.doc.version(s"${version.value}")
 )
 
-lazy val catsSettings = Seq(
-  libraryDependencies ++= Seq(
-    "org.typelevel" %%% "cats-core" % catsVersion % Provided,
-    "org.typelevel" %%% "cats-laws" % catsVersion % Test
-  )
-)
-
 lazy val testSettings = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
   libraryDependencies += "io.monix" %%% "minitest-laws" % "1.0.1" % Test
@@ -298,8 +291,8 @@ lazy val monix = project.in(file("."))
 
 lazy val coreJVM = project.in(file("monix/jvm"))
   .configure(profile)
-  .dependsOn(executionJVM, evalJVM, reactiveJVM, catsJVM)
-  .aggregate(executionJVM, evalJVM, reactiveJVM, catsJVM)
+  .dependsOn(executionJVM, evalJVM, reactiveJVM)
+  .aggregate(executionJVM, evalJVM, reactiveJVM)
   .settings(crossSettings)
   .settings(noSources)
   .settings(name := "monix")
@@ -307,30 +300,11 @@ lazy val coreJVM = project.in(file("monix/jvm"))
 lazy val coreJS = project.in(file("monix/js"))
   .configure(profile)
   .enablePlugins(ScalaJSPlugin)
-  .dependsOn(executionJS, evalJS, reactiveJS, catsJS)
-  .aggregate(executionJS, evalJS, reactiveJS, catsJS)
+  .dependsOn(executionJS, evalJS, reactiveJS)
+  .aggregate(executionJS, evalJS, reactiveJS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(name := "monix")
-
-lazy val catsCommon =
-  crossSettings ++ testSettings ++ Seq(
-    name := "monix-cats",
-    libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-core" % catsVersion % Compile
-    ))
-
-lazy val catsJVM = project.in(file("monix-cats/jvm"))
-  .configure(profile)
-  .settings(catsCommon)
-  .settings(noSources)
-  .settings(mimaSettings("monix-cats"))
-
-lazy val catsJS = project.in(file("monix-cats/js"))
-  .enablePlugins(ScalaJSPlugin)
-  .configure(profile)
-  .settings(catsCommon)
-  .settings(scalaJSSettings)
 
 lazy val executionCommon = crossVersionSharedSources ++ Seq(
   name := "monix-execution"
@@ -355,12 +329,16 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(executionCommon)
 
 lazy val evalCommon =
-  crossSettings ++ testSettings ++ catsSettings ++ Seq(
+  crossSettings ++ testSettings ++ Seq(
     name := "monix-eval",
     // Filtering out private stuff for 2.2.x
     mimaBinaryIssueFilters ++= Seq(
       // Related to issue: https://github.com/monix/monix/issues/313
       exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskFromFuture.apply")
+    ),
+    libraryDependencies ++= Seq(
+      "org.typelevel" %%% "cats-core" % catsVersion % Compile,
+      "org.typelevel" %%% "cats-laws" % catsVersion % Test
     )
   )
 
@@ -380,7 +358,7 @@ lazy val evalJS = project.in(file("monix-eval/js"))
   .settings(evalCommon)
 
 lazy val reactiveCommon =
-  crossSettings ++ testSettings ++ catsSettings ++ Seq(
+  crossSettings ++ testSettings ++ Seq(
     name := "monix-reactive",
     // Filtering out private stuff for 2.2.x
     mimaBinaryIssueFilters ++= Seq(

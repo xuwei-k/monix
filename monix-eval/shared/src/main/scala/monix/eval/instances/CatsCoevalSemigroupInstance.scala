@@ -15,25 +15,25 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.eval.instances
 
-import cats.{Applicative, Monoid}
-import monix.eval.Task
+import cats.{Applicative, Semigroup}
+import monix.eval.Coeval
 
-/** Instance defined for all `A` for which a [[cats.Monoid]] is defined,
-  * providing a `Monoid` implementation for all `Task[A]`.
+/** Instance defined for all `A` for which a [[cats.Semigroup]] is defined,
+  * providing a `Semigroup` implementation for all `Coeval[A]`.
   *
-  * @param F is the [[cats.Applicative]] instance for our [[monix.eval.Task]]
-  * @param A is the [[cats.Monoid]] restriction for our `A` type
+  * @param F is the [[cats.Applicative]] instance for our [[monix.eval.Coeval]]
+  * @param A is the [[cats.Semigroup]] restriction for our `A` type
   */
-class CatsTaskMonoidInstance[A](implicit F: Applicative[Task], A: Monoid[A])
-  extends CatsTaskSemigroupInstance[A] with CatsTaskMonoidInstance.TaskMonoid[A] {
+class CatsCoevalSemigroupInstance[A](implicit F: Applicative[Coeval], A: Semigroup[A])
+  extends CatsCoevalSemigroupInstance.CoevalSemigroup[A] {
 
-  override final def empty: Task[A] =
-    Task.now(A.empty)
+  override final def combine(x: Coeval[A], y: Coeval[A]): Coeval[A] =
+    F.map2(x, y)(A.combine)
 }
 
-object CatsTaskMonoidInstance {
+object CatsCoevalSemigroupInstance {
   /** Indirection to avoid class loading issues. */
-  trait TaskMonoid[A] extends Monoid[Task[A]]
+  trait CoevalSemigroup[A] extends Semigroup[Coeval[A]]
 }

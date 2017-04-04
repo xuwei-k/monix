@@ -22,10 +22,9 @@ import cats.kernel.laws.GroupLaws
 import cats.laws.discipline.{CoflatMapTests, MonadErrorTests}
 import cats.syntax.all._
 import monix.eval.Task.nondeterminism
+import monix.eval.instances.{ApplicativeStrategy, CatsParallelTaskInstances}
 import monix.execution.schedulers.TestScheduler
-import monix.types.{ApplicativeStrategy, CatsParallelTaskInstances}
 import org.scalacheck.Arbitrary
-
 import scala.concurrent.duration._
 import scala.util.Success
 

@@ -15,23 +15,13 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.eval.instances
 
 import cats.{Bimonad, MonadError}
 import monix.eval.Coeval
 
-/** Specification for Cats type-classes, to be implemented for [[monix.eval.Coeval Coeval]].
-  *
-  * @see [[CatsCoevalDefaultInstances]] for the actual implementation.
-  */
-trait CatsCoevalInstances[F[+A] <: monix.eval.Coeval[A]] extends MonadError[F, Throwable] with Bimonad[F]
-
-/** Concrete [[monix.eval.Coeval Coeval]] integration with Cats Type-classes.
-  *
-  * NOTE: we need an indirection versus [[CatsCoevalInstances]] to avoid
-  * class loading issues.
-  */
-class CatsCoevalDefaultInstances extends CatsCoevalInstances[Coeval] {
+/** [[monix.eval.Coeval Coeval]] integration with Cats Type-classes. */
+class CatsCoevalInstances extends MonadError[Coeval, Throwable] with Bimonad[Coeval] {
   override def pure[A](a: A): Coeval[A] =
     Coeval.now(a)
   override def extract[A](x: Coeval[A]): A =
@@ -63,4 +53,4 @@ class CatsCoevalDefaultInstances extends CatsCoevalInstances[Coeval] {
 }
 
 /** Default Cats instances for [[monix.eval.Coeval Coeval]]. */
-object CatsCoevalDefaultInstances extends CatsCoevalDefaultInstances
+object CatsCoevalInstances extends CatsCoevalInstances

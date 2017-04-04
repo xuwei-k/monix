@@ -15,16 +15,15 @@
  * limitations under the License.
  */
 
-package monix
+package monix.eval.instances
 
-package object types {
-  /** Newtype implementation for Scala */
-  type Tagged[U] = { type Tag = U }
-
-  /** Tag a type `T` with a tag.
-    *
-    * The resulting type is used to discriminate between type-class
-    * instances. Similar in usage to `newtype` from Haskell.
+/** Collection of tags that can be used for [[Tagged tagging]]
+  * with [[@@]], with the purpose to discriminate between
+  * type-class instances.
+  */
+object Tags {
+  /** Marks instances that normally do serial / sequential
+    * execution for parallel execution.
     */
-  type @@[+T, Tag] = T with Tagged[Tag]
+  sealed abstract class Parallel
 }

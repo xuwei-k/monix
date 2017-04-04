@@ -15,25 +15,25 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.eval.instances
 
-import cats.{Applicative, Group}
+import cats.{Applicative, Semigroup}
 import monix.eval.Task
 
-/** Instance defined for all `A` for which a [[cats.Group]] is defined,
-  * providing a `Group` implementation for all `Task[A]`.
+/** Instance defined for all `A` for which a [[cats.Semigroup]] is defined,
+  * providing a `Semigroup` implementation for all `Task[A]`.
   *
   * @param F is the [[cats.Applicative]] instance for our [[monix.eval.Task]]
-  * @param A is the [[cats.Group]] restriction for our `A` type
+  * @param A is the [[cats.Semigroup]] restriction for our `A` type
   */
-class CatsTaskGroupInstance[A](implicit F: Applicative[Task], A: Group[A])
-  extends CatsTaskMonoidInstance[A] with CatsTaskGroupInstance.TaskGroup[A] {
+class CatsTaskSemigroupInstance[A](implicit F: Applicative[Task], A: Semigroup[A])
+  extends CatsTaskSemigroupInstance.TaskSemigroup[A] {
 
-  override final def inverse(a: Task[A]): Task[A] =
-    a.map(A.inverse)
+  override final def combine(x: Task[A], y: Task[A]): Task[A] =
+    F.map2(x, y)(A.combine)
 }
 
-object CatsTaskGroupInstance {
+object CatsTaskSemigroupInstance {
   /** Indirection to avoid class loading issues. */
-  trait TaskGroup[A] extends Group[Task[A]]
+  trait TaskSemigroup[A] extends Semigroup[Task[A]]
 }

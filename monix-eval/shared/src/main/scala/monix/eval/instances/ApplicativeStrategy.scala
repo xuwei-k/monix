@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.eval.instances
 
 /** An enumeration describing the possible evaluation
   * strategies for `Applicative[Task]`.
