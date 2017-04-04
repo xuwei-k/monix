@@ -17,13 +17,14 @@
 
 package monix.eval.instances
 
-import cats.{CoflatMap, MonadError}
+import cats.{CoflatMap, Eval, MonadError}
 import monix.eval.Task
 
 /** Defines the list of implemented type-classes from Cats for
   * [[monix.eval.Task Task]].
   */
-trait CatsTaskInstances[F[+A] <: monix.eval.Task[A]] extends MonadError[F, Throwable] with CoflatMap[F]
+trait CatsTaskInstances[F[+A] <: monix.eval.Task[A]]
+  extends MonadError[F, Throwable] with CoflatMap[F]
 
 /** Concrete [[monix.eval.Task Task]] integration with Cats Type-classes. */
 class CatsSerialTaskInstances extends CatsTaskInstances[Task] {
@@ -53,6 +54,10 @@ class CatsSerialTaskInstances extends CatsTaskInstances[Task] {
     fa.onErrorRecover(pf)
   override def recoverWith[A](fa: Task[A])(pf: PartialFunction[Throwable, Task[A]]): Task[A] =
     fa.onErrorRecoverWith(pf)
+  override def catchNonFatal[A](a: => A)(implicit ev: <:<[Throwable, Throwable]): Task[A] =
+    Task.eval(a)
+  override def catchNonFatalEval[A](a: Eval[A])(implicit ev: <:<[Throwable, Throwable]): Task[A] =
+    Task.fromEval(a)
 }
 
 /** Default Cats instances for [[monix.eval.Task Task]]. */

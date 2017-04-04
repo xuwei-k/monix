@@ -807,6 +807,13 @@ object Task extends TaskCoreInstances {
       case Failure(ex) => Error(ex)
     }
 
+  /** Converts any [[cats.Eval]] into a [[Task]]. */
+  def fromEval[A](x: cats.Eval[A]): Task[A] =
+    x match {
+      case cats.Now(v) => Task.now(v)
+      case _ => Task.eval(x.value)
+    }
+
   /** Keeps calling `f` until it returns a `Right` result.
     *
     * Based on Phil Freeman's

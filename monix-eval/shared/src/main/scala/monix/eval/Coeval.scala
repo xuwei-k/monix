@@ -17,10 +17,11 @@
 
 package monix.eval
 
-import cats.{Applicative, Group, Monoid, Semigroup}
+import cats.{Applicative, Eval, Group, Monoid, Semigroup}
 import monix.eval.Coeval._
 import monix.eval.instances.{CatsCoevalGroupInstance, CatsCoevalInstances, CatsCoevalMonoidInstance, CatsCoevalSemigroupInstance}
 import monix.eval.internal.LazyOnSuccess
+
 import scala.annotation.tailrec
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
@@ -91,6 +92,13 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   /** Converts the source [[Coeval]] into a [[Task]]. */
   def task: Task[A] =
     Task.coeval(self)
+
+  /** Converts the source into a [[cats.Eval]]. */
+  def toEval: Eval[A] =
+    self match {
+      case Coeval.Now(v) => Eval.now(v)
+      case _ => Eval.always(self.value)
+    }
 
   /** Creates a new `Coeval` by applying a function to the successful result
     * of the source, and returns a new instance equivalent
@@ -393,6 +401,13 @@ object Coeval extends CoevalKernelInstances {
   /** Builds a `Coeval` out of a Scala `Try` value. */
   def fromTry[A](a: Try[A]): Coeval[A] =
     Attempt.fromTry(a)
+
+  /** Converts a [[cats.Eval]] into a [[Coeval]]. */
+  def fromEval[A](x: Eval[A]): Coeval[A] =
+    x match {
+      case cats.Now(value) => Coeval.now(value)
+      case _ => Coeval.eval(x.value)
+    }
 
   /** Keeps calling `f` until it returns a `Right` result.
     *

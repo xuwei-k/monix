@@ -18,7 +18,7 @@
 package monix.reactive
 
 import java.io.{BufferedReader, InputStream, Reader}
-import cats.{CoflatMap, MonadCombine, MonadError, MonadFilter}
+import cats.{CoflatMap, Eval, MonadCombine, MonadError, MonadFilter}
 import monix.eval.Coeval.Attempt
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.Ack.{Continue, Stop}
@@ -658,6 +658,13 @@ object Observable {
       case Coeval.Now(v) => Observable.now(v)
       case Coeval.Error(ex) => Observable.raiseError(ex)
       case other => Observable.eval(other.value)
+    }
+
+  /** Converts any [[cats.Eval]] into a [[Task]]. */
+  def fromEval[A](x: cats.Eval[A]): Observable[A] =
+    x match {
+      case cats.Now(v) => Observable.now(v)
+      case _ => Observable.eval(x.value)
     }
 
   /** Lifts a non-strict value into an observable that emits a single element,
@@ -1456,6 +1463,10 @@ object Observable {
       fa.onErrorRecover(pf)
     override def recoverWith[A](fa: Observable[A])(pf: PartialFunction[Throwable, Observable[A]]): Observable[A] =
       fa.onErrorRecoverWith(pf)
+    override def catchNonFatal[A](a: => A)(implicit ev: <:<[Throwable, Throwable]): Observable[A] =
+      Observable.eval(a)
+    override def catchNonFatalEval[A](a: Eval[A])(implicit ev: <:<[Throwable, Throwable]): Observable[A] =
+      Observable.fromEval(a)
     override def empty[A]: Observable[A] =
       Observable.empty[A]
     override def filter[A](fa: Observable[A])(f: (A) => Boolean): Observable[A] =

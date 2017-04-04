@@ -17,7 +17,7 @@
 
 package monix.eval.instances
 
-import cats.{Bimonad, MonadError}
+import cats.{Bimonad, Eval, MonadError}
 import monix.eval.Coeval
 
 /** [[monix.eval.Coeval Coeval]] integration with Cats Type-classes. */
@@ -50,6 +50,10 @@ class CatsCoevalInstances extends MonadError[Coeval, Throwable] with Bimonad[Coe
     fa.onErrorRecover(pf)
   override def recoverWith[A](fa: Coeval[A])(pf: PartialFunction[Throwable, Coeval[A]]): Coeval[A] =
     fa.onErrorRecoverWith(pf)
+  override def catchNonFatal[A](a: => A)(implicit ev: <:<[Throwable, Throwable]): Coeval[A] =
+    Coeval.eval(a)
+  override def catchNonFatalEval[A](a: Eval[A])(implicit ev: <:<[Throwable, Throwable]): Coeval[A] =
+    Coeval.fromEval(a)
 }
 
 /** Default Cats instances for [[monix.eval.Coeval Coeval]]. */
