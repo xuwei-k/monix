@@ -20,13 +20,13 @@ addCommandAlias("ci-jvm",     s";clean ;coreJVM/test:compile ;${allProjects.map(
 addCommandAlias("ci-jvm-all", s";ci-jvm ;unidoc")
 addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned")
 
-val catsVersion = "1.4.0"
+val catsVersion = "1.5.0"
 val catsEffectVersion = "1.1.0"
 val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.2"
-val scalaTestVersion = "3.0.4"
-val minitestVersion = "2.1.1"
+val scalaTestVersion = "3.0.5"
+val minitestVersion = "2.2.2"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -54,8 +54,8 @@ lazy val warnUnusedImport = Seq(
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := "2.12.7",
-  crossScalaVersions := Seq("2.11.12", "2.12.7"),
+  scalaVersion := "2.12.8",
+  crossScalaVersions := Seq("2.11.12", "2.12.8"),
 
   scalacOptions ++= Seq(
     // warnings
