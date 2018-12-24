@@ -105,9 +105,6 @@ private[monix] final class DropAllOnOverflowQueue[A : ClassTag] private (_recomm
     count
   }
 
-  override val hasDefiniteSize: Boolean =
-    true
-
   override def size: Int = {
     if (tailIdx >= headIdx)
       tailIdx - headIdx

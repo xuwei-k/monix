@@ -227,7 +227,7 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
       case ref: Set[_] =>
         loop(ref.asInstanceOf[Set[Cancelable]])
       case _ =>
-        loop(that.seq.toSet[Cancelable])
+        loop(that.toSet[Cancelable])
     }
   }
 }
