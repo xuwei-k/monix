@@ -180,7 +180,7 @@ object Batch {
   /** Builds a [[Batch]] from a Scala `Seq`, with lazy
     * semantics on transformations.
     */
-  def fromSeq[A](seq: Seq[A]): Batch[A] = {
+  def fromSeq[A](seq: collection.Seq[A]): Batch[A] = {
     val bs = if (seq.hasDefiniteSize) recommendedBatchSize else 1
     fromSeq(seq, bs)
   }
@@ -188,7 +188,7 @@ object Batch {
   /** Builds a [[Batch]] from a Scala `Seq`, with lazy
     * semantics on transformations.
     */
-  def fromSeq[A](seq: Seq[A], recommendedBatchSize: Int): Batch[A] =
+  def fromSeq[A](seq: collection.Seq[A], recommendedBatchSize: Int): Batch[A] =
     new SeqBatch(seq, recommendedBatchSize)
 
   /** Builds a [[Batch]] from a Scala `IndexedSeq`, with strict

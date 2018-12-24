@@ -100,7 +100,7 @@ object TaskWanderSuite extends BaseTestSuite {
   test("Task.wander should wrap exceptions in the function") { implicit s =>
     val ex = DummyException("dummy")
     val task1 = Task.wander(Seq(0)) { _ =>
-      throw ex
+      (throw ex): Task[Int]
     }
 
     val result1 = task1.runToFuture; s.tick()
