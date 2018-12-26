@@ -88,7 +88,7 @@ object ChunkedArrayQueueSuite extends SimpleTestSuite {
       list = list.enqueue(queue.dequeue())
     }
 
-    assertEquals(list, (0 until 100).toList)
+    assertEquals[Seq[Int]](list, (0 until 100).toList)
     assertEquals(queue.dequeue().asInstanceOf[AnyRef], null)
     assert(queue.isEmpty, "queue.isEmpty")
     assert(!queue2.isEmpty, "!stack2.isEmpty")
@@ -105,7 +105,7 @@ object ChunkedArrayQueueSuite extends SimpleTestSuite {
       list = list.enqueue(queue.dequeue())
     }
 
-    assertEquals(list, expected)
+    assertEquals[Iterable[Int]](list, expected)
     assertEquals(queue.dequeue().asInstanceOf[AnyRef], null)
     assert(queue.isEmpty, "queue.isEmpty")
   }

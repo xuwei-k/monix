@@ -207,7 +207,7 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
   /** Replaces the underlying set of cancelables with a new one,
     * returning the old set just before the substitution happened.
     */
-  def getAndSet(that: GenTraversableOnce[Cancelable]): Set[Cancelable] = {
+  def getAndSet(that: TraversableOnce[Cancelable]): Set[Cancelable] = {
     @tailrec def loop(that: Set[Cancelable]): Set[Cancelable] =
       stateRef.get match {
         case Cancelled =>
