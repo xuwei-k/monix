@@ -25,8 +25,15 @@ val catsEffectVersion = "1.1.0"
 val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.2"
-val scalaTestVersion = "3.0.4"
-val minitestVersion = "2.2.2"
+val scalaTestVersion = "3.0.5"
+val minitestVersion = Def.setting {
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, v)) if v <= 12 =>
+      "2.1.1"
+    case _ =>
+      "2.2.2"
+  }
+}
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -292,7 +299,7 @@ lazy val unidocSettings = Seq(
 lazy val testSettings = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
   libraryDependencies ++= Seq(
-    "io.monix" %%% "minitest-laws" % minitestVersion % Test,
+    "io.monix" %%% "minitest-laws" % minitestVersion.value % Test,
     "org.typelevel" %%% "cats-laws" % catsVersion % Test,
     "org.typelevel" %%% "cats-effect-laws" % catsEffectVersion % Test
   )
