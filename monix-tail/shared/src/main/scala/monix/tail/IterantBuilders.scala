@@ -133,7 +133,7 @@ object IterantBuilders {
       Iterant.fromIndexedSeq(xs)(F)
 
     /** Aliased builder, see documentation for [[Iterant.fromSeq]]. */
-    def fromSeq[A](xs: Seq[A])(implicit F: Applicative[F]): Iterant[F, A] =
+    def fromSeq[A](xs: collection.Seq[A])(implicit F: Applicative[F]): Iterant[F, A] =
       Iterant.fromSeq(xs)(F)
 
     /** Aliased builder, see documentation for [[Iterant.fromIterable]]. */

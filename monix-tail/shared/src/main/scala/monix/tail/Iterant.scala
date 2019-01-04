@@ -2469,7 +2469,7 @@ object Iterant extends IterantInstances {
     NextBatch(Batch.fromArray(xs), F.pure(empty[F, A]))
 
   /** Converts any `scala.collection.Seq` into a stream. */
-  def fromSeq[F[_], A](xs: Seq[A])(implicit F: Applicative[F]): Iterant[F, A] =
+  def fromSeq[F[_], A](xs: collection.Seq[A])(implicit F: Applicative[F]): Iterant[F, A] =
     xs match {
       case ref: LinearSeq[_] =>
         fromList[F, A](ref.asInstanceOf[LinearSeq[A]])(F)

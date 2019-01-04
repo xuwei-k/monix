@@ -37,9 +37,9 @@ final class CompositeException(val errors: Seq[Throwable])
   }
 }
 
-object CompositeException extends AbstractFunction1[Seq[Throwable], CompositeException] {
+object CompositeException extends AbstractFunction1[collection.Seq[Throwable], CompositeException] {
   /** Builder for [[CompositeException]]. */
-  def apply(errors: Seq[Throwable]): CompositeException =
+  def apply(errors: collection.Seq[Throwable]): CompositeException =
     new CompositeException(errors.toList)
 
   /** For pattern matching [[CompositeException]] references. */
