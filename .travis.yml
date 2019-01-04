@@ -7,7 +7,7 @@ matrix:
   include:
     - jdk: oraclejdk8
       scala: 2.13.0-M5
-      env: COMMAND=ci-jvm-all COVERAGE=coverage
+      env: COMMAND=ci-jvm-all
 
 env:
   global:
