@@ -340,7 +340,7 @@ object BatchCursor {
   /** Builds a [[BatchCursor]] from a Scala `Seq`, with lazy
     * semantics on transformations.
     */
-  def fromSeq[A](seq: Seq[A]): BatchCursor[A] = {
+  def fromSeq[A](seq: collection.Seq[A]): BatchCursor[A] = {
     val bs = if (seq.hasDefiniteSize) recommendedBatchSize else 1
     fromSeq(seq, bs)
   }
@@ -348,7 +348,7 @@ object BatchCursor {
   /** Builds a [[BatchCursor]] from a Scala `Seq`, with lazy
     * semantics on transformations.
     */
-  def fromSeq[A](seq: Seq[A], recommendedBatchSize: Int): BatchCursor[A] =
+  def fromSeq[A](seq: collection.Seq[A], recommendedBatchSize: Int): BatchCursor[A] =
     fromIterator(seq.iterator, recommendedBatchSize)
 
   /** Builds a [[BatchCursor]] from a Scala `IndexedSeq`, with strict

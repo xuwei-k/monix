@@ -21,7 +21,7 @@ package batches
 /** [[Batch]] implementation that wraps any
   * Scala [[scala.collection.Seq Seq]].
   */
-final class SeqBatch[+A](ref: Seq[A], recommendedBatchSize: Int) extends Batch[A] {
+final class SeqBatch[+A](ref: collection.Seq[A], recommendedBatchSize: Int) extends Batch[A] {
   def cursor(): BatchCursor[A] = BatchCursor.fromSeq(ref, recommendedBatchSize)
 
   override def take(n: Int): Batch[A] =
