@@ -18,9 +18,9 @@
 package monix.eval
 
 import cats.Eval
-import cats.effect.{IO, SyncIO}
+import cats.effect.{ContextShift, IO, SyncIO}
 import monix.catnap.SchedulerEffect
-import monix.execution.CancelablePromise
+import monix.execution.{CancelablePromise, Scheduler}
 import monix.execution.exceptions.DummyException
 
 import scala.concurrent.Promise
@@ -55,6 +55,8 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.from(IO)") { implicit s =>
+    implicit def contextShift(implicit s: Scheduler): ContextShift[IO] =
+      SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     val p = Promise[Int]()
     val f = Task.from(IO.fromFuture(IO.pure(p.future))).runToFuture
 
@@ -67,6 +69,8 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.from(IO) for errors") { implicit s =>
+    implicit def contextShift(implicit s: Scheduler): ContextShift[IO] =
+      SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     val p = Promise[Int]()
     val dummy = DummyException("dummy")
     val f = Task.from(IO.fromFuture(IO.pure(p.future))).runToFuture

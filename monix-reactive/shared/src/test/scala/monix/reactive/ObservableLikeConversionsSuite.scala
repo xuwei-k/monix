@@ -18,10 +18,11 @@
 package monix.reactive
 
 import cats.Eval
-import cats.effect.{IO, SyncIO}
+import cats.effect.{ContextShift, IO, SyncIO}
 import monix.catnap.SchedulerEffect
 import monix.eval.TaskConversionsSuite.{CIO, CustomConcurrentEffect, CustomEffect}
 import monix.eval.{Coeval, Task}
+import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 import scala.concurrent.Promise
@@ -54,6 +55,8 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Observable.from(IO)") { implicit s =>
+    implicit def contextShift(implicit s: Scheduler): ContextShift[IO] =
+      SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     val p = Promise[Int]()
     val f = Observable.from(IO.fromFuture(IO.pure(p.future))).runAsyncGetFirst
 
@@ -66,6 +69,8 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Observable.from(IO) for errors") { implicit s =>
+    implicit def contextShift(implicit s: Scheduler): ContextShift[IO] =
+      SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     val p = Promise[Int]()
     val dummy = DummyException("dummy")
     val f = Observable.from(IO.fromFuture(IO.pure(p.future))).runAsyncGetFirst
