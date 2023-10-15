@@ -189,6 +189,9 @@ lazy val sharedSettings = pgpSettings ++ Seq(
       ver
   },
 
+  scalacOptions -= "-Xfatal-warnings",
+  scalacOptions += "-language:experimental.macros",
+
   // Enable this to debug warnings...
   Compile / scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
@@ -197,31 +200,9 @@ lazy val sharedSettings = pgpSettings ++ Seq(
     }
   },
 
-  // Turning off fatal warnings for doc generation
-  Compile / doc / tpolecatExcludeOptions ++= ScalacOptions.defaultConsoleExclude,
-  
-  // Turn off annoyances in tests
-  Test / tpolecatExcludeOptions ++= {
-    CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 12)) => 
-        ScalacOptions.defaultConsoleExclude
-      case _ => 
-        Set(
-          ScalacOptions.lintInferAny,
-          ScalacOptions.warnUnusedImplicits,
-          ScalacOptions.warnUnusedExplicits,
-          ScalacOptions.warnUnusedParams,
-          ScalacOptions.warnUnusedNoWarn,
-        )
-    }
-  },
-  
   // Silence everything in auto-generated files
   scalacOptions ++= {
-    if (isDotty.value)
-      Seq.empty
-    else
-      Seq("-P:silencer:pathFilters=.*[/]src_managed[/].*")
+    Seq("-Wconf:cat=cat=scala3-migration:warning")
   },
 
   // Syntax improvements, linting, etc.
@@ -232,7 +213,6 @@ lazy val sharedSettings = pgpSettings ++ Seq(
       Seq(
         compilerPlugin(kindProjectorCompilerPlugin),
         compilerPlugin(betterMonadicForCompilerPlugin),
-        compilerPlugin(silencerCompilerPlugin)
       )
   },
   libraryDependencies ++= Seq(
@@ -308,7 +288,8 @@ lazy val sharedSettings = pgpSettings ++ Seq(
       email = "noreply@alexn.org",
       url   = url("https://alexn.org")
     )
-  )
+  ),
+  scalacOptions -= "-Xfatal-warnings",
 )
 
 def scalaPartV = Def.setting(CrossVersion.partialVersion(scalaVersion.value))
