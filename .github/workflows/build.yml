@@ -4,8 +4,6 @@ on:
   pull_request:
     branches: ['series/*']
   push:
-    branches: ['series/*']
-    tags: ["v[0-9]+*"]
 
 jobs:
   jvm-tests:
