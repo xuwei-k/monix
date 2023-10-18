@@ -29,7 +29,6 @@ import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
 
 import scala.concurrent.Future
 import scala.util.{ Failure, Success }
-import scala.annotation.nowarn
 
 /** A high-performance and non-blocking [[BufferedSubscriber]]
   * implementation for the [[monix.reactive.OverflowStrategy.DropNew DropNew]]
@@ -39,7 +38,7 @@ import scala.annotation.nowarn
 private[observers] final class DropNewBufferedSubscriber[A] private (
   out: Subscriber[A],
   bufferSize: Int,
-  @nowarn onOverflow: Long => Coeval[Option[A]] = null,
+  onOverflow: Long => Coeval[Option[A]],
 ) extends CommonBufferMembers with BufferedSubscriber[A] with Subscriber.Sync[A] {
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
