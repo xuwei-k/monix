@@ -83,19 +83,19 @@ lazy val scalaCompilerLib = Def.setting {
 
 /** [[https://typelevel.org/cats/typeclasses/lawtesting.html]] */
 lazy val catsLawsLib =
-  Def.setting { "org.typelevel" %%% "cats-laws" % cats_Version }
+  Def.setting { "org.typelevel" %% "cats-laws" % cats_Version }
 
 /** [[https://typelevel.org/cats-effect/]] */
 lazy val catsEffectLib =
-  Def.setting { "org.typelevel" %%% "cats-effect" % catsEffect_Version }
+  Def.setting { "org.typelevel" %% "cats-effect" % catsEffect_Version }
 
 /** [[https://typelevel.org/cats-effect/]] */
 lazy val catsEffectLawsLib =
-  Def.setting { "org.typelevel" %%% "cats-effect-laws" % catsEffect_Version }
+  Def.setting { "org.typelevel" %% "cats-effect-laws" % catsEffect_Version }
 
 /** [[https://github.com/monix/implicitbox]] */
 lazy val implicitBoxLib =
-  Def.setting { "io.monix" %%% "implicitbox" % implicitBox_Version }
+  Def.setting { "io.monix" %% "implicitbox" % implicitBox_Version }
 
 /** [[https://github.com/JCTools/JCTools]] */
 lazy val jcToolsLib =
@@ -109,19 +109,20 @@ lazy val reactiveStreamsTCKLib =
 
 /** [[https://github.com/scala-js/scala-js-macrotask-executor]] */
 lazy val macrotaskExecutorLib =
-  Def.setting { "org.scala-js" %%% "scala-js-macrotask-executor" % macrotaskExecutor_Version }
+  Def.setting { "org.scala-js" %% "scala-js-macrotask-executor" % macrotaskExecutor_Version }
 
 /** [[https://github.com/typelevel/kind-projector]] */
-lazy val kindProjectorCompilerPlugin =
-  "org.typelevel" % "kind-projector" % kindProjector_Version cross CrossVersion.full
+lazy val kindProjectorCompilerPlugin = ("org.typelevel" % "kind-projector" % kindProjector_Version).cross(
+  CrossVersion.full
+)
 
 /** [[https://github.com/monix/minitest/]] */
 lazy val minitestLib =
-  Def.setting { "io.monix" %%% "minitest-laws" % minitest_Version }
+  Def.setting { "io.monix" %% "minitest-laws" % minitest_Version }
 
 /** [[https://github.com/scala/scala-collection-compat]] */
 lazy val scalaCollectionCompatLib =
-  Def.setting { ("org.scala-lang.modules" %%% "scala-collection-compat" % scalaCompat_Version) }
+  Def.setting { ("org.scala-lang.modules" %% "scala-collection-compat" % scalaCompat_Version) }
 
 /** [[https://github.com/oleg-py/better-monadic-for]] */
 lazy val betterMonadicForCompilerPlugin =
@@ -272,21 +273,18 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
   Test / parallelExecution := false,
   Test / testForkedParallel := false,
 
-  // https://github.com/sbt/sbt/issues/2654
-  incOptions := incOptions.value.withLogRecompileOnMacro(false),
-
   // Settings for deployment through the Sonatype Central Portal
   ThisBuild / publishTo := {
     val centralSnapshots = "https://central.sonatype.com/repository/maven-snapshots/"
-    if (isSnapshot.value) Some("central-snapshots" at centralSnapshots)
+    if (isSnapshot.value) Some("central-snapshots".at(centralSnapshots))
     else localStaging.value
   },
   publishMavenStyle := true,
   Test / publishArtifact := false,
   pomIncludeRepository := { _ => false },
 
-  licenses := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
-  homepage := Some(url("https://monix.io")),
+  licenses := Seq("APL2" -> uri("http://www.apache.org/licenses/LICENSE-2.0.txt")),
+  homepage := Some(uri("https://monix.io")),
   headerLicense := Some(HeaderLicense.Custom("""
     |Copyright (c) 2014-2022 Monix Contributors.
     |See the project homepage at: https://monix.io
@@ -304,7 +302,7 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
     |limitations under the License.""".trim.stripMargin)),
   scmInfo := Some(
     ScmInfo(
-      url("https://github.com/monix/monix"),
+      uri("https://github.com/monix/monix"),
       "scm:git@github.com:monix/monix.git"
     )
   ),
@@ -313,7 +311,7 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
       id    = "alexelcu",
       name  = "Alexandru Nedelcu",
       email = "noreply@alexn.org",
-      url   = url("https://alexn.org")
+      url   = uri("https://alexn.org")
     )
   )
 )
@@ -361,7 +359,6 @@ lazy val assemblyShadeSettings = Seq(
     .withIncludeScala(false)
     .withIncludeBin(false),
   // for some weird reason the "assembly" task runs tests by default
-  assembly / test := {},
   // prevent cyclic task dependencies, see https://github.com/sbt/sbt-assembly/issues/365
   // otherwise, there's a cyclic dependency between packageBin and assembly
   assembly / fullClasspath := (Runtime / managedClasspath).value,
@@ -375,7 +372,6 @@ lazy val assemblyShadeSettings = Seq(
   // prevent original dependency to be added to pom as runtime dep
   makePomConfiguration := makePomConfiguration.value.withConfigurations(Vector.empty),
   // package by running assembly
-  Compile / packageBin := ReproducibleBuildsPlugin.postProcessJar((Compile / assembly).value)
 )
 
 lazy val unidocSettings = Seq(
@@ -460,7 +456,6 @@ def monixSubModule(
   publishArtifacts: Boolean
 ): Project => Project = pr => {
   pr.configure(baseSettingsAndPlugins(publishArtifacts = publishArtifacts))
-    .enablePlugins(ReproducibleBuildsPlugin)
     .settings(extraSourceSettings)
     .settings(name := projectName)
 }
@@ -514,6 +509,7 @@ lazy val monix = project
   .aggregate(coreJVM, coreJS)
   .settings(unidocSettings)
   .settings(
+    name := "monix-root",
     // Tries restricting concurrency when running tests
     // https://www.scala-sbt.org/1.x/docs/Parallel-Execution.html
     Global / concurrentRestrictions += Tags.limit(Tags.Test, 1),
@@ -530,6 +526,8 @@ lazy val monix = project
 
 // --------------------------------------------
 // monix (root)
+
+lazy val monixRoot = rootProject.autoAggregate
 
 lazy val coreProfile =
   crossModule(
@@ -786,7 +784,6 @@ lazy val tracingTests = project
     FullTracingTest / unmanagedSourceDirectories += {
       baseDirectory.value.getParentFile / "src" / "fulltracing" / "scala"
     },
-    Test / test := (Test / test).dependsOn(FullTracingTest / test).value,
     Test / fork := true,
     FullTracingTest / fork := true,
     Test / javaOptions ++= Seq(
